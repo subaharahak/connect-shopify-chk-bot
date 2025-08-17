@@ -123,27 +123,33 @@ Contact @mhitzxg for
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
         ])
 
-    def clean_response(self, text):
-        return re.sub(r'<[^>]+>', '', text).strip()
+def clean_response(self, text):
+    # Remove HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Remove all backslashes unless they're escaping Markdown characters
+    text = re.sub(r'\\([^_*\[\]()~`>#+\-=|{}.!])', r'\1', text)
+    return text.strip()
 
-    def escape_markdown(self, text):
+  def escape_markdown(self, text):
         # First remove any existing backslashes
         text = text.replace('\\', '')
         # Then escape only necessary Markdown characters
         escape_chars = '_*[]()~`>#+-=|{}.!'
         return ''.join(['\\' + char if char in escape_chars else char for char in text])
 
-    def check_card(self, cc_line):
-        try:
-            url = f"{GATEWAY_URL}?lista={cc_line}"
-            headers = {"User-Agent": self.generate_user_agent()}
-            response = requests.get(url, headers=headers, timeout=20)
-            # First clean HTML tags, then remove unwanted backslashes
-            response_text = self.clean_response(response.text).replace('\\', '')
-            return response_text
-        except Exception as e:
-            logger.error(f"Gateway error: {e}")
-            return f"❌ Gateway Error: {str(e)}"
+def check_card(self, cc_line):
+    try:
+        url = f"{GATEWAY_URL}?lista={cc_line}"
+        headers = {"User-Agent": self.generate_user_agent()}
+        response = requests.get(url, headers=headers, timeout=20)
+        # First remove HTML tags, then fix escaped characters
+        response_text = self.clean_response(response.text)
+        # Remove ONLY the unwanted backslashes (not those escaping Markdown)
+        response_text = response_text.replace('\\"', '"').replace('\\/', '/')
+        return response_text
+    except Exception as e:
+        logger.error(f"Gateway error: {e}")
+        return f"❌ Gateway Error: {str(e)}"
 
     def is_admin(self, user_id):
         return user_id in self.ADMIN_IDS
@@ -430,3 +436,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
