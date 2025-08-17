@@ -8,7 +8,7 @@ import random
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # BOT Config
-BOT_TOKEN = "6351415129:AAFmlLXocNHEJ1zykE4m-JJOVBpVAGbmGzg"
+BOT_TOKEN = "7953997114:AAFX4O_PlM1TjnDinJ0Iezuj15NUstWkvQU"
 MAIN_ADMIN_ID = 5103348494
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -177,3 +177,4 @@ def mchk_handler(msg):
 
 print("🚀 Bot is running with chk.php backend (inline mass check enabled)...")
 bot.infinity_polling()
+
