@@ -9,7 +9,7 @@ import random
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # BOT Config
-BOT_TOKEN = "7953997114:AAFX4O_PlM1TjnDinJ0Iezuj15NUstWkvQU"
+BOT_TOKEN = "7953997114:AAESF36v1-DpGwvANSj5iWu-GOwn74jW-NY"
 MAIN_ADMIN_ID = 5103348494
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -154,3 +154,4 @@ def mchk_handler(msg):
     threading.Thread(target=process_cards).start()
 
 # ... [keep the rest of your existing code] ...
+
