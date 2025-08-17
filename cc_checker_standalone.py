@@ -11,7 +11,7 @@ import logging
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ==================== CONFIGURATION ====================
-BOT_TOKEN = "7953997114:AAFX4O_PlM1TjnDinJ0Iezuj15NUstWkvQU"
+BOT_TOKEN = "8228704791:AAH85VvWM1HK0-8EEiJKh533Gc3-ul5r-x8"
 MAIN_ADMIN_ID = 5103348494
 MAX_CARDS_PER_MCHK = 10
 GATEWAY_URL = "https://chk-for-shopify.onrender.com"
@@ -291,3 +291,4 @@ def main():
 if __name__ == '__main__':
     logger.info("🚀 Starting CC Checker Bot")
     main()
+
