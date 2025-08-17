@@ -127,23 +127,23 @@ Contact @mhitzxg for
         return re.sub(r'<[^>]+>', '', text).strip()
 
     def escape_markdown(self, text):
-    # First remove any existing backslashes
-    text = text.replace('\\', '')
-    # Then escape only necessary Markdown characters
-    escape_chars = '_*[]()~`>#+-=|{}.!'
+        # First remove any existing backslashes
+        text = text.replace('\\', '')
+        # Then escape only necessary Markdown characters
+        escape_chars = '_*[]()~`>#+-=|{}.!'
         return ''.join(['\\' + char if char in escape_chars else char for char in text])
 
-   def check_card(self, cc_line):
-    try:
-        url = f"{GATEWAY_URL}?lista={cc_line}"
-        headers = {"User-Agent": self.generate_user_agent()}
-        response = requests.get(url, headers=headers, timeout=20)
-        # First clean HTML tags, then remove unwanted backslashes
-        response_text = self.clean_response(response.text).replace('\\', '')
-        return response_text
-    except Exception as e:
-        logger.error(f"Gateway error: {e}")
-        return f"❌ Gateway Error: {str(e)}"
+    def check_card(self, cc_line):
+        try:
+            url = f"{GATEWAY_URL}?lista={cc_line}"
+            headers = {"User-Agent": self.generate_user_agent()}
+            response = requests.get(url, headers=headers, timeout=20)
+            # First clean HTML tags, then remove unwanted backslashes
+            response_text = self.clean_response(response.text).replace('\\', '')
+            return response_text
+        except Exception as e:
+            logger.error(f"Gateway error: {e}")
+            return f"❌ Gateway Error: {str(e)}"
 
     def is_admin(self, user_id):
         return user_id in self.ADMIN_IDS
@@ -284,6 +284,7 @@ Contact @mhitzxg for
                 )
             except Exception as e:
                 logger.error(f"Start error: {e}")
+
         @self.bot.message_handler(commands=['chk'])
         def chk_handler(msg):
             if not self.is_authorized(msg.from_user.id):
@@ -429,6 +430,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
