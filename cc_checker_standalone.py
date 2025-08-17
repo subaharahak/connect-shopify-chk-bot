@@ -104,10 +104,11 @@ class CcCheckerBot:
     def register_handlers(self):
         @self.bot.message_handler(commands=['start'])
         def start_handler(msg):
-            self.bot.reply_to(msg, "🌟 CC Checker Bot Ready!\n\n"
-                              "🔹 /chk - Check single card\n"
-                              "🔹 /mchk - Mass check (reply to file)\n"
-                              "🔹 Admin commands available")
+            self.bot.reply_to(msg, "🌟 𝐒𝐡𝐨𝐩𝐢𝐟𝐲 𝐀𝐮𝐭𝐨 𝐂𝐡𝐞𝐜𝐤𝐨𝐮𝐭 𝐯𝟐!!\n\n"
+                              "Use Commands as Follows\n"
+                              "✞ /chk - Check single card\n"
+                              "✞ /mchk - Mass check (reply to file)\n"
+                              "💸 Contact Admin - @mhitzxg For Bot Access!!")
 
         @self.bot.message_handler(commands=['chk'])
         def chk_handler(msg):
@@ -127,11 +128,11 @@ class CcCheckerBot:
                 return self.bot.reply_to(msg, "❌ Invalid format. Use `/chk 4556737586899855|12|2026|123`", parse_mode='Markdown')
 
             # Animated processing
-            processing = self.bot.reply_to(msg, "🔄 Starting verification...")
+            processing = self.bot.reply_to(msg, "🔄 Starting Charge...")
             stop_event = threading.Event()
             
             def loading_animation():
-                frames = ["🔍 Checking card...", "🔍 Checking card... 🌟", 
+                frames = ["🔍 Checking card... 💸", "🔍 Checking card... 🌟", 
                          "🔍 Checking card... 💳", "🔍 Checking card... ⚡"]
                 i = 0
                 while not stop_event.is_set():
@@ -227,7 +228,7 @@ class CcCheckerBot:
             checked += 1
             result = self.check_card(cc)
             
-            if any(x in result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
+            if any(x in result for x in ["CHARGED", "CVV MATCH", "APPROVED", "ORDER", "CVV"]):
                 approved += 1
                 self.bot.send_message(chat_id, f"💳 Card {checked}/{total}\n{result}")
             else:
@@ -291,4 +292,5 @@ def main():
 if __name__ == '__main__':
     logger.info("🚀 Starting CC Checker Bot")
     main()
+
 
