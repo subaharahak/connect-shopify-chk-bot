@@ -126,20 +126,24 @@ Contact @mhitzxg for
     def clean_response(self, text):
         return re.sub(r'<[^>]+>', '', text).strip()
 
-    def escape_markdown(self, text):
-        # Escape special Markdown characters
-        escape_chars = '_*[]()~`>#+-=|{}.!'
-        return ''.join(['\\' + char if char in escape_chars else char for char in text])
+   def escape_markdown(self, text):
+    # First remove any existing backslashes
+    text = text.replace('\\', '')
+    # Then escape only necessary Markdown characters
+    escape_chars = '_*[]()~`>#+-=|{}.!'
+    return ''.join(['\\' + char if char in escape_chars else char for char in text])
 
-    def check_card(self, cc_line):
-        try:
-            url = f"{GATEWAY_URL}?lista={cc_line}"
-            headers = {"User-Agent": self.generate_user_agent()}
-            response = requests.get(url, headers=headers, timeout=20)
-            return self.clean_response(response.text)
-        except Exception as e:
-            logger.error(f"Gateway error: {e}")
-            return f"❌ Gateway Error: {str(e)}"
+   def check_card(self, cc_line):
+    try:
+        url = f"{GATEWAY_URL}?lista={cc_line}"
+        headers = {"User-Agent": self.generate_user_agent()}
+        response = requests.get(url, headers=headers, timeout=20)
+        # First clean HTML tags, then remove unwanted backslashes
+        response_text = self.clean_response(response.text).replace('\\', '')
+        return response_text
+    except Exception as e:
+        logger.error(f"Gateway error: {e}")
+        return f"❌ Gateway Error: {str(e)}"
 
     def is_admin(self, user_id):
         return user_id in self.ADMIN_IDS
@@ -169,15 +173,19 @@ Contact @mhitzxg for
     def start_mass_check(self, chat_id, cc_lines):
         total = len(cc_lines)
         approved = declined = checked = 0
+        processing_delay = 1.5  # seconds between checks
 
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton("🔄 Refresh Status", callback_data="refresh_status"))
+        
+        # Send initial status message
         status_msg = self.bot.send_message(
             chat_id,
             f"🔮 *Mass Check Started*\n\n"
+            f"📊 Total Cards: {total}\n"
             f"✅ Approved: 0\n"
             f"❌ Declined: 0\n"
-            f"📊 Progress: 0/{total}",
+            f"⏳ Processing: 0/{total}",
             reply_markup=kb,
             parse_mode='Markdown'
         )
@@ -186,9 +194,10 @@ Contact @mhitzxg for
             try:
                 self.bot.edit_message_text(
                     f"🔮 *Mass Check Progress*\n\n"
+                    f"📊 Total Cards: {total}\n"
                     f"✅ Approved: {approved}\n"
                     f"❌ Declined: {declined}\n"
-                    f"📊 Progress: {checked}/{total}",
+                    f"⏳ Processing: {checked}/{total}",
                     chat_id,
                     status_msg.message_id,
                     reply_markup=kb,
@@ -197,26 +206,62 @@ Contact @mhitzxg for
             except Exception as e:
                 logger.error(f"Error updating status: {e}")
 
-        def process_card(cc):
+        def process_cards():
             nonlocal approved, declined, checked
-            checked += 1
-            result = self.check_card(cc)
             
-            if any(x in result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
-                approved += 1
-                self.bot.send_message(
-                    chat_id,
-                    f"💳 *Card {checked}/{total}*\n\n{self.escape_markdown(result)}",
-                    parse_mode='Markdown'
-                )
-            else:
-                declined += 1
+            for index, cc in enumerate(cc_lines, 1):
+                try:
+                    # Update status before processing each card
+                    checked = index
+                    update_status()
+                    
+                    # Process the card
+                    result = self.check_card(cc)
+                    clean_result = result.replace('\\', '')  # Remove unwanted backslashes
+                    
+                    # Determine status
+                    if any(x in clean_result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
+                        approved += 1
+                        status = "✅ APPROVED ✅"
+                    else:
+                        declined += 1
+                        status = "❌ DECLINED ❌"
+                    
+                    # Send individual result
+                    self.bot.send_message(
+                        chat_id,
+                        f"💳 *Card {index}/{total} - {status}*\n\n"
+                        f"{clean_result}\n\n"
+                        f"⚡ Powered by Premium CC Checker",
+                        parse_mode='Markdown'
+                    )
+                    
+                    # Controlled delay between checks
+                    time.sleep(processing_delay)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing card {index}: {e}")
+                    self.bot.send_message(
+                        chat_id,
+                        f"⚠️ Error processing card {index}: {str(e)}",
+                        parse_mode='Markdown'
+                    )
+                    time.sleep(processing_delay)
+                    continue
             
+            # Final status update when complete
             update_status()
-            time.sleep(1)
+            self.bot.send_message(
+                chat_id,
+                f"🏁 *Mass Check Complete!*\n\n"
+                f"✅ Approved: {approved}\n"
+                f"❌ Declined: {declined}\n"
+                f"📊 Success Rate: {round((approved/total)*100 if total > 0 else 0, 2)}%",
+                parse_mode='Markdown'
+            )
 
-        for cc in cc_lines:
-            threading.Thread(target=process_card, args=(cc,)).start()
+        # Start processing in a single dedicated thread
+        threading.Thread(target=process_cards).start()
 
     def register_handlers(self):
         @self.bot.message_handler(commands=['start', 'help'])
@@ -239,7 +284,6 @@ Contact @mhitzxg for
                 )
             except Exception as e:
                 logger.error(f"Start error: {e}")
-
         @self.bot.message_handler(commands=['chk'])
         def chk_handler(msg):
             if not self.is_authorized(msg.from_user.id):
@@ -385,3 +429,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
