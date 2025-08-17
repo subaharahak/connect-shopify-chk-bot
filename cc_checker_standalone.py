@@ -7,6 +7,7 @@ import json
 import requests
 import random
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from datetime import datetime
 
 # BOT Config
 BOT_TOKEN = "7953997114:AAFX4O_PlM1TjnDinJ0Iezuj15NUstWkvQU"
@@ -16,16 +17,6 @@ bot = telebot.TeleBot(BOT_TOKEN)
 AUTHORIZED_USERS = {}
 
 # ---------------- Helper Functions ---------------- #
-
-def clean_response(text):
-    """Remove HTML tags and extra whitespace from response"""
-    # Remove <pre> tags
-    text = re.sub(r'<pre[^>]*>|</pre>', '', text, flags=re.IGNORECASE)
-    # Remove other HTML tags if present
-    text = re.sub(r'<[^>]+>', '', text)
-    # Clean up extra whitespace and newlines
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
 
 def load_admins():
     try:
@@ -90,6 +81,15 @@ def generate_user_agent():
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
     ])
+def clean_response(text):
+    """Remove HTML tags and extra whitespace from response"""
+    # Remove <pre> tags
+    text = re.sub(r'<pre[^>]*>|</pre>', '', text, flags=re.IGNORECASE)
+    # Remove other HTML tags if present
+    text = re.sub(r'<[^>]+>', '', text)
+    # Clean up extra whitespace
+    text = ' '.join(text.split())
+    return text.strip()
 
 # ---------------- Gateway Call ---------------- #
 
@@ -105,7 +105,131 @@ def check_card_gateway(cc_line):
 AUTHORIZED_USERS = load_auth()
 ADMIN_IDS = load_admins()
 
-# ---------------- Telegram Commands ---------------- #
+# ---------------- Admin Commands ---------------- #
+
+@bot.message_handler(commands=['addadmin'])
+def add_admin(msg):
+    if msg.from_user.id != MAIN_ADMIN_ID:
+        return bot.reply_to(msg, "❌ Only the main admin can add new admins.")
+    
+    try:
+        parts = msg.text.split()
+        if len(parts) < 2:
+            return bot.reply_to(msg, "❌ Usage: /addadmin <user_id>")
+        
+        user_id = int(parts[1])
+        admins = load_admins()
+        
+        if user_id in admins:
+            return bot.reply_to(msg, "❌ This user is already an admin.")
+        
+        admins.append(user_id)
+        save_admins(admins)
+        bot.reply_to(msg, f"✅ Added {user_id} as admin.\nTotal admins: {len(admins)}")
+        
+    except ValueError:
+        bot.reply_to(msg, "❌ Invalid user ID. Please provide a numeric Telegram ID.")
+    except Exception as e:
+        bot.reply_to(msg, f"❌ Error: {e}")
+
+@bot.message_handler(commands=['removeadmin'])
+def remove_admin(msg):
+    if msg.from_user.id != MAIN_ADMIN_ID:
+        return bot.reply_to(msg, "❌ Only the main admin can remove admins.")
+    
+    try:
+        parts = msg.text.split()
+        if len(parts) < 2:
+            return bot.reply_to(msg, "❌ Usage: /removeadmin <user_id>")
+        
+        user_id = int(parts[1])
+        admins = load_admins()
+        
+        if user_id == MAIN_ADMIN_ID:
+            return bot.reply_to(msg, "❌ Cannot remove the main admin.")
+        
+        if user_id not in admins:
+            return bot.reply_to(msg, "❌ This user is not an admin.")
+        
+        admins.remove(user_id)
+        save_admins(admins)
+        bot.reply_to(msg, f"✅ Removed {user_id} from admins.\nTotal admins: {len(admins)}")
+        
+    except ValueError:
+        bot.reply_to(msg, "❌ Invalid user ID. Please provide a numeric Telegram ID.")
+    except Exception as e:
+        bot.reply_to(msg, f"❌ Error: {e}")
+
+@bot.message_handler(commands=['listadmins'])
+def list_admins(msg):
+    if not is_admin(msg.from_user.id):
+        return bot.reply_to(msg, "❌ Only admins can view the admin list.")
+    
+    admins = load_admins()
+    if not admins:
+        return bot.reply_to(msg, "❌ No admins found.")
+    
+    admin_list = ""
+    for i, admin_id in enumerate(admins, 1):
+        if admin_id == MAIN_ADMIN_ID:
+            admin_list += f"{i}. {admin_id} (Main Admin) 👑\n"
+        else:
+            admin_list += f"{i}. {admin_id}\n"
+    
+    bot.reply_to(msg, f"📜 Admin List:\n\n{admin_list}\nTotal admins: {len(admins)}")
+
+# ---------------- Bot Commands ---------------- #
+
+@bot.message_handler(commands=['start'])
+def start_handler(msg):
+    bot.reply_to(msg, """🌟 Welcome to CC Checker Bot! 🌟
+
+🔹 Use /chk to check a single card
+🔹 Use /mchk to mass check cards (reply to a file or message)
+🔹 Admins can use /auth to authorize users
+🔹 Contact @mhitzxg for more info""")
+
+@bot.message_handler(commands=['auth'])
+def authorize_user(msg):
+    if not is_admin(msg.from_user.id):
+        return
+    try:
+        parts = msg.text.split()
+        if len(parts) < 2:
+            return bot.reply_to(msg, "❌ Usage: /auth <user_id> [days]")
+        user = parts[1]
+        days = int(parts[2]) if len(parts) > 2 else None
+
+        if user.startswith('@'):
+            return bot.reply_to(msg, "❌ Use numeric Telegram ID, not @username.")
+
+        uid = int(user)
+        expiry = "forever" if not days else time.time() + (days * 86400)
+        AUTHORIZED_USERS[str(uid)] = expiry
+        save_auth(AUTHORIZED_USERS)
+
+        msg_text = f"✅ Authorized {uid} for {days} days." if days else f"✅ Authorized {uid} forever."
+        bot.reply_to(msg, msg_text)
+    except Exception as e:
+        bot.reply_to(msg, f"❌ Error: {e}")
+
+@bot.message_handler(commands=['rm'])
+def remove_auth(msg):
+    if not is_admin(msg.from_user.id):
+        return
+    try:
+        parts = msg.text.split()
+        if len(parts) < 2:
+            return bot.reply_to(msg, "❌ Usage: /rm <user_id>")
+        uid = int(parts[1])
+        if str(uid) in AUTHORIZED_USERS:
+            del AUTHORIZED_USERS[str(uid)]
+            save_auth(AUTHORIZED_USERS)
+            bot.reply_to(msg, f"✅ Removed {uid} from authorized users.")
+        else:
+            bot.reply_to(msg, "❌ User is not authorized.")
+    except Exception as e:
+        bot.reply_to(msg, f"❌ Error: {e}")
 
 @bot.message_handler(commands=["chk"])
 def chk_handler(msg):
@@ -185,6 +309,12 @@ def mchk_handler(msg):
         bot.send_message(msg.chat.id, "✅ Mass check completed.")
 
     threading.Thread(target=process_cards).start()
+
+# ---------------- Start Bot ---------------- #
+print("🚀 Starting CC Checker Bot...")
+print("✅ Using external gateway for checks")
+print("🔒 Admin system enabled")
+print("👥 User authorization system active")
 
 app = Flask('')
 
