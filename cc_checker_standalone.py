@@ -54,9 +54,6 @@ class PremiumCcChecker:
   💳 *PREMIUM CC CHECKER* 💳  
 ╚═══════════════════════╝
 
-⚡ *Powering Instant Checkouts Worldwide*
-🌐 *Supporting 50+ Payment Gateways*
-
 ✧･ﾟ: *✧ Commands ✧* :･ﾟ✧
 
 ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
@@ -68,22 +65,12 @@ class PremiumCcChecker:
 ├─ Max 10 cards per batch
 └─ Supports .txt files with auto-formatting
 ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-⚙️ *Premium Features:*
-✓ 99.9% Uptime Guarantee
-✓ Military-Grade Encryption
-✓ Real-Time Fraud Detection
-✓ Global Payment Routing
-
 💎 *VIP Access:* 
 Contact @mhitzxg for 
 ⚡ *Elite Membership* ⚡
 
 🌌 *Current Status:*
 ✅ Operational | 🚀 Turbo Mode Enabled
-
-🔐 *Security Level:* 
-🛡️Σ> Military Grade Protection
 """
         self.PROCESSING_ANIMATION = [
             "🔍 Analyzing Card Patterns...",
@@ -390,4 +377,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
