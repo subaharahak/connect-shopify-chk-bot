@@ -8,11 +8,12 @@ import requests
 import random
 import sys
 import logging
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import (InlineKeyboardMarkup, InlineKeyboardButton, 
+                          ReplyKeyboardMarkup, KeyboardButton)
 
 # ==================== CONFIGURATION ====================
-BOT_TOKEN = "8228704791:AAH85VvWM1HK0-8EEiJKh533Gc3-ul5r-x8"
-MAIN_ADMIN_ID = 5103348494
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your bot token
+MAIN_ADMIN_ID = 5103348494         # Replace with your admin ID
 MAX_CARDS_PER_MCHK = 10
 GATEWAY_URL = "https://chk-for-shopify.onrender.com"
 # =======================================================
@@ -33,7 +34,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def health_check():
-    return "🤖 Premium CC Checker is Operational", 200
+    return "🔥 Premium CC Checker is Operational", 200
 
 @app.route('/ping')
 def ping():
@@ -45,7 +46,7 @@ class PremiumCcChecker:
         self.load_data()
         self.register_handlers()
         
-        # Premium visual settings
+        # Premium visual assets
         self.START_MESSAGE = """
 ✨🔥 *𝕊ℍ𝕆ℙ𝕀𝔽𝕐 ℙℝ𝕆 ℂℍ𝔼ℂ𝕂𝔼ℝ 𝕍𝟚* 🔥✨
 
@@ -84,23 +85,32 @@ Contact @mhitzxg for
 🔐 *Security Level:* 
 🛡️Σ> Military Grade Protection
 """
-        
-    def load_data(self):
-        self.AUTHORIZED_USERS = self._load_json("authorized.json", {})
-        self.ADMIN_IDS = self._load_json("admins.json", [MAIN_ADMIN_ID])
-        
-    def _load_json(self, filename, default):
-        try:
-            with open(filename, "r") as f:
-                return json.load(f)
-        except:
-            return default
-            
-    def _save_json(self, filename, data):
-        with open(filename, "w") as f:
-            json.dump(data, f)
+        self.PROCESSING_ANIMATION = [
+            "🔍 Analyzing Card Patterns...",
+            "🔒 Verifying with Payment Gateways...",
+            "🌐 Routing Through Global Nodes...",
+            "⚡ Finalizing Transaction Check..."
+        ]
 
-    # ================ HELPER FUNCTIONS ================
+    def load_data(self):
+        try:
+            with open("authorized.json", "r") as f:
+                self.AUTHORIZED_USERS = json.load(f)
+        except:
+            self.AUTHORIZED_USERS = {}
+            
+        try:
+            with open("admins.json", "r") as f:
+                self.ADMIN_IDS = json.load(f)
+        except:
+            self.ADMIN_IDS = [MAIN_ADMIN_ID]
+
+    def save_data(self):
+        with open("authorized.json", "w") as f:
+            json.dump(self.AUTHORIZED_USERS, f)
+        with open("admins.json", "w") as f:
+            json.dump(self.ADMIN_IDS, f)
+
     def normalize_card(self, text):
         if not text:
             return None
@@ -129,7 +139,6 @@ Contact @mhitzxg for
     def clean_response(self, text):
         return re.sub(r'<[^>]+>', '', text).strip()
 
-    # ================ GATEWAY CALL ================
     def check_card(self, cc_line):
         try:
             url = f"{GATEWAY_URL}?lista={cc_line}"
@@ -140,12 +149,35 @@ Contact @mhitzxg for
             logger.error(f"Gateway error: {e}")
             return f"❌ Gateway Error: {str(e)}"
 
-    # ================ COMMAND HANDLERS ================
+    def is_admin(self, user_id):
+        return user_id in self.ADMIN_IDS
+        
+    def is_authorized(self, user_id):
+        if self.is_admin(user_id):
+            return True
+        if str(user_id) in self.AUTHORIZED_USERS:
+            expiry = self.AUTHORIZED_USERS[str(user_id)]
+            if expiry == "forever" or time.time() < expiry:
+                return True
+            else:
+                del self.AUTHORIZED_USERS[str(user_id)]
+                self.save_data()
+        return False
+
+    def send_unauthorized_message(self, msg):
+        self.bot.reply_to(
+            msg,
+            "🔒 *Access Denied* 🔒\n\n"
+            "This is a premium service requiring authorization.\n\n"
+            "Contact @mhitzxg for access\n"
+            "🛡️ Your ID: `{}`".format(msg.from_user.id),
+            parse_mode='Markdown'
+        )
+
     def register_handlers(self):
         @self.bot.message_handler(commands=['start', 'help'])
         def start_handler(msg):
             try:
-                # Create premium keyboard
                 markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
                 markup.add(
                     KeyboardButton('/chk'),
@@ -154,7 +186,6 @@ Contact @mhitzxg for
                     KeyboardButton('📊 Bot Status')
                 )
                 
-                # Send premium message
                 self.bot.send_message(
                     msg.chat.id,
                     self.START_MESSAGE,
@@ -162,16 +193,6 @@ Contact @mhitzxg for
                     reply_markup=markup,
                     disable_web_page_preview=True
                 )
-                
-                # Follow-up with animated sticker (optional)
-                try:
-                    self.bot.send_sticker(
-                        msg.chat.id,
-                        sticker='CAACAgIAAxkBAAEL...'  # Replace with your sticker ID
-                    )
-                except:
-                    pass
-                    
             except Exception as e:
                 logger.error(f"Start error: {e}")
 
@@ -180,7 +201,6 @@ Contact @mhitzxg for
             if not self.is_authorized(msg.from_user.id):
                 return self.send_unauthorized_message(msg)
 
-            # Get CC details
             cc = None
             if msg.reply_to_message:
                 cc = self.normalize_card(msg.reply_to_message.text or "")
@@ -199,7 +219,6 @@ Contact @mhitzxg for
                     parse_mode='Markdown'
                 )
 
-            # Premium processing animation
             processing_msg = self.bot.reply_to(
                 msg,
                 "🔄 *Initializing Premium Check System...*\n"
@@ -207,16 +226,9 @@ Contact @mhitzxg for
                 parse_mode='Markdown'
             )
             
-            # Animate processing
             stop_event = threading.Event()
             def loading_animation():
-                frames = [
-                    "🔍 Analyzing Card Patterns...",
-                    "🔒 Verifying with Payment Gateways...",
-                    "🌐 Routing Through Global Nodes...",
-                    "⚡ Finalizing Transaction Check..."
-                ]
-                for frame in frames:
+                for frame in self.PROCESSING_ANIMATION:
                     if stop_event.is_set():
                         return
                     try:
@@ -236,7 +248,6 @@ Contact @mhitzxg for
                 result = self.check_card(cc)
                 stop_event.set()
                 
-                # Format result with premium styling
                 formatted_result = (
                     f"✨ *Card Check Complete* ✨\n\n"
                     f"{result}\n\n"
@@ -262,38 +273,120 @@ Contact @mhitzxg for
                     parse_mode='Markdown'
                 )
 
-        # [Rest of your handlers...]
+        @self.bot.message_handler(commands=['mchk'])
+        def mchk_handler(msg):
+            if not self.is_authorized(msg.from_user.id):
+                return self.send_unauthorized_message(msg)
 
-    # [Rest of your class methods...]
+            response_chat = msg.chat.id if msg.chat.type in ['group', 'supergroup'] else msg.from_user.id
+
+            if not msg.reply_to_message:
+                return self.bot.send_message(response_chat, "❌ Reply to a message with CCs or a file.")
+
+            text = ""
+            if msg.reply_to_message.document:
+                try:
+                    file_info = self.bot.get_file(msg.reply_to_message.document.file_id)
+                    downloaded_file = self.bot.download_file(file_info.file_path)
+                    text = downloaded_file.decode("utf-8", errors="ignore")
+                except Exception as e:
+                    return self.bot.send_message(response_chat, f"❌ File error: {str(e)}")
+            else:
+                text = msg.reply_to_message.text or ""
+
+            cc_lines = []
+            for line in text.splitlines()[:MAX_CARDS_PER_MCHK]:
+                norm = self.normalize_card(line.strip())
+                if norm:
+                    cc_lines.append(norm)
+
+            if not cc_lines:
+                return self.bot.send_message(response_chat, "❌ No valid cards found.")
+
+            if len(text.splitlines()) > MAX_CARDS_PER_MCHK:
+                self.bot.send_message(response_chat, f"⚠️ Only first {MAX_CARDS_PER_MCHK} cards will be processed")
+
+            self.start_mass_check(response_chat, cc_lines)
+
+        def start_mass_check(self, chat_id, cc_lines):
+            total = len(cc_lines)
+            approved = declined = checked = 0
+
+            kb = InlineKeyboardMarkup()
+            kb.add(InlineKeyboardButton("🔄 Refresh Status", callback_data="refresh_status"))
+            status_msg = self.bot.send_message(
+                chat_id,
+                f"🔮 *Mass Check Started*\n\n"
+                f"✅ Approved: 0\n"
+                f"❌ Declined: 0\n"
+                f"📊 Progress: 0/{total}",
+                reply_markup=kb,
+                parse_mode='Markdown'
+            )
+
+            def update_status():
+                self.bot.edit_message_text(
+                    f"🔮 *Mass Check Progress*\n\n"
+                    f"✅ Approved: {approved}\n"
+                    f"❌ Declined: {declined}\n"
+                    f"📊 Progress: {checked}/{total}",
+                    chat_id,
+                    status_msg.message_id,
+                    reply_markup=kb,
+                    parse_mode='Markdown'
+                )
+
+            def process_card(cc):
+                nonlocal approved, declined, checked
+                checked += 1
+                result = self.check_card(cc)
+                
+                if any(x in result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
+                    approved += 1
+                    self.bot.send_message(
+                        chat_id,
+                        f"💳 *Card {checked}/{total}*\n\n{result}",
+                        parse_mode='Markdown'
+                    )
+                else:
+                    declined += 1
+                
+                update_status()
+                time.sleep(1)
+
+            for cc in cc_lines:
+                threading.Thread(target=process_card, args=(cc,)).start()
+
+        @self.bot.callback_query_handler(func=lambda call: call.data == "refresh_status")
+        def refresh_status(call):
+            try:
+                self.bot.answer_callback_query(call.id, "Status Updated")
+            except:
+                pass
+
+    def run(self):
+        self.bot.infinity_polling()
 
 def run_flask():
     app.run(host='0.0.0.0', port=8080)
 
 def main():
-    try:
-        # Start Flask in background
-        flask_thread = threading.Thread(target=run_flask)
-        flask_thread.daemon = True
-        flask_thread.start()
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
 
-        # Start bot with restart capability
-        while True:
-            try:
-                bot = PremiumCcChecker()
-                logger.info("🚀 Starting Premium CC Checker Bot")
-                bot.bot.infinity_polling()
-            except Exception as e:
-                logger.error(f"Bot crashed: {e}")
-                time.sleep(5)
-                logger.info("🔄 Restarting bot...")
-            except KeyboardInterrupt:
-                logger.info("🛑 Shutting down gracefully...")
-                break
-
-    except Exception as e:
-        logger.critical(f"💀 Fatal error: {e}")
-        sys.exit(1)
+    while True:
+        try:
+            bot = PremiumCcChecker()
+            logger.info("🚀 Starting Premium CC Checker Bot")
+            bot.run()
+        except Exception as e:
+            logger.error(f"Bot crashed: {e}")
+            time.sleep(5)
+            logger.info("🔄 Restarting bot...")
+        except KeyboardInterrupt:
+            logger.info("🛑 Shutting down gracefully...")
+            break
 
 if __name__ == '__main__':
     main()
-
