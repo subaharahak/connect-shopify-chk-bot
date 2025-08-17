@@ -101,14 +101,31 @@ class CcCheckerBot:
             return f"❌ Gateway Error: {str(e)}"
 
     # ================ COMMAND HANDLERS ================
-    def register_handlers(self):
-        @self.bot.message_handler(commands=['start'])
-        def start_handler(msg):
-            self.bot.reply_to(msg, "🌟 𝐒𝐡𝐨𝐩𝐢𝐟𝐲 𝐀𝐮𝐭𝐨 𝐂𝐡𝐞𝐜𝐤𝐨𝐮𝐭 𝐯𝟐!!\n\n"
-                              "Use Commands as Follows\n"
-                              "✞ /chk - Check single card\n"
-                              "✞ /mchk - Mass check (reply to file)\n"
-                              "💸 Contact Admin - @mhitzxg For Bot Access!!")
+   @self.bot.message_handler(commands=['start'])
+def start_handler(msg):
+    try:
+        self.bot.send_message(
+            msg.chat.id,
+            start_msg,
+            parse_mode='Markdown',
+            disable_web_page_preview=True
+        )
+        # Optional: Add buttons
+        markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.KeyboardButton('/chk'),
+            telebot.types.KeyboardButton('/mchk'),
+            telebot.types.KeyboardButton('Contact Admin'),
+            telebot.types.KeyboardButton('Status')
+        )
+        self.bot.send_message(
+            msg.chat.id,
+            "👇 *Select an option below* 👇",
+            reply_markup=markup,
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        logger.error(f"Start error: {e}")
 
         @self.bot.message_handler(commands=['chk'])
         def chk_handler(msg):
@@ -292,5 +309,6 @@ def main():
 if __name__ == '__main__':
     logger.info("🚀 Starting CC Checker Bot")
     main()
+
 
 
