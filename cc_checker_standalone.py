@@ -126,6 +126,11 @@ Contact @mhitzxg for
     def clean_response(self, text):
         return re.sub(r'<[^>]+>', '', text).strip()
 
+    def escape_markdown(self, text):
+        # Escape special Markdown characters
+        escape_chars = '_*[]()~`>#+-=|{}.!'
+        return ''.join(['\\' + char if char in escape_chars else char for char in text])
+
     def check_card(self, cc_line):
         try:
             url = f"{GATEWAY_URL}?lista={cc_line}"
@@ -160,6 +165,58 @@ Contact @mhitzxg for
             "🛡️ Your ID: `{}`".format(msg.from_user.id),
             parse_mode='Markdown'
         )
+
+    def start_mass_check(self, chat_id, cc_lines):
+        total = len(cc_lines)
+        approved = declined = checked = 0
+
+        kb = InlineKeyboardMarkup()
+        kb.add(InlineKeyboardButton("🔄 Refresh Status", callback_data="refresh_status"))
+        status_msg = self.bot.send_message(
+            chat_id,
+            f"🔮 *Mass Check Started*\n\n"
+            f"✅ Approved: 0\n"
+            f"❌ Declined: 0\n"
+            f"📊 Progress: 0/{total}",
+            reply_markup=kb,
+            parse_mode='Markdown'
+        )
+
+        def update_status():
+            try:
+                self.bot.edit_message_text(
+                    f"🔮 *Mass Check Progress*\n\n"
+                    f"✅ Approved: {approved}\n"
+                    f"❌ Declined: {declined}\n"
+                    f"📊 Progress: {checked}/{total}",
+                    chat_id,
+                    status_msg.message_id,
+                    reply_markup=kb,
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.error(f"Error updating status: {e}")
+
+        def process_card(cc):
+            nonlocal approved, declined, checked
+            checked += 1
+            result = self.check_card(cc)
+            
+            if any(x in result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
+                approved += 1
+                self.bot.send_message(
+                    chat_id,
+                    f"💳 *Card {checked}/{total}*\n\n{self.escape_markdown(result)}",
+                    parse_mode='Markdown'
+                )
+            else:
+                declined += 1
+            
+            update_status()
+            time.sleep(1)
+
+        for cc in cc_lines:
+            threading.Thread(target=process_card, args=(cc,)).start()
 
     def register_handlers(self):
         @self.bot.message_handler(commands=['start', 'help'])
@@ -237,7 +294,7 @@ Contact @mhitzxg for
                 
                 formatted_result = (
                     f"✨ *Card Check Complete* ✨\n\n"
-                    f"{result}\n\n"
+                    f"{self.escape_markdown(result)}\n\n"
                     f"🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"⚡ Powered by Premium CC Checker"
                 )
@@ -295,55 +352,6 @@ Contact @mhitzxg for
 
             self.start_mass_check(response_chat, cc_lines)
 
-        def start_mass_check(self, chat_id, cc_lines):
-            total = len(cc_lines)
-            approved = declined = checked = 0
-
-            kb = InlineKeyboardMarkup()
-            kb.add(InlineKeyboardButton("🔄 Refresh Status", callback_data="refresh_status"))
-            status_msg = self.bot.send_message(
-                chat_id,
-                f"🔮 *Mass Check Started*\n\n"
-                f"✅ Approved: 0\n"
-                f"❌ Declined: 0\n"
-                f"📊 Progress: 0/{total}",
-                reply_markup=kb,
-                parse_mode='Markdown'
-            )
-
-            def update_status():
-                self.bot.edit_message_text(
-                    f"🔮 *Mass Check Progress*\n\n"
-                    f"✅ Approved: {approved}\n"
-                    f"❌ Declined: {declined}\n"
-                    f"📊 Progress: {checked}/{total}",
-                    chat_id,
-                    status_msg.message_id,
-                    reply_markup=kb,
-                    parse_mode='Markdown'
-                )
-
-            def process_card(cc):
-                nonlocal approved, declined, checked
-                checked += 1
-                result = self.check_card(cc)
-                
-                if any(x in result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
-                    approved += 1
-                    self.bot.send_message(
-                        chat_id,
-                        f"💳 *Card {checked}/{total}*\n\n{result}",
-                        parse_mode='Markdown'
-                    )
-                else:
-                    declined += 1
-                
-                update_status()
-                time.sleep(1)
-
-            for cc in cc_lines:
-                threading.Thread(target=process_card, args=(cc,)).start()
-
         @self.bot.callback_query_handler(func=lambda call: call.data == "refresh_status")
         def refresh_status(call):
             try:
@@ -377,5 +385,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
