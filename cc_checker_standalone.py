@@ -1,4 +1,5 @@
 import telebot
+from flask import Flask
 import re
 import threading
 import time
@@ -175,6 +176,20 @@ def mchk_handler(msg):
 
     threading.Thread(target=process_cards).start()
 
-print("🚀 Bot is running with chk.php backend (inline mass check enabled)...")
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = threading.Thread(target=run)
+    t.start()
+
+keep_alive()
 bot.infinity_polling()
+
 
