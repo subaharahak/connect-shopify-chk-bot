@@ -126,7 +126,7 @@ Contact @mhitzxg for
     def clean_response(self, text):
         return re.sub(r'<[^>]+>', '', text).strip()
 
-   def escape_markdown(self, text):
+    def escape_markdown(self, text):
     # First remove any existing backslashes
     text = text.replace('\\', '')
     # Then escape only necessary Markdown characters
@@ -429,4 +429,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
