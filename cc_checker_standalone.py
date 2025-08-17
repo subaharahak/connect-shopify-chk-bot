@@ -131,7 +131,7 @@ Contact @mhitzxg for
     text = text.replace('\\', '')
     # Then escape only necessary Markdown characters
     escape_chars = '_*[]()~`>#+-=|{}.!'
-    return ''.join(['\\' + char if char in escape_chars else char for char in text])
+        return ''.join(['\\' + char if char in escape_chars else char for char in text])
 
    def check_card(self, cc_line):
     try:
@@ -429,5 +429,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
