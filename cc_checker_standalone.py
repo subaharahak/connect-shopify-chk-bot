@@ -105,24 +105,50 @@ Contact @mhitzxg for
             json.dump(self.ADMIN_IDS, f, indent=4)
 
     def normalize_card(self, text):
-        """Extract and format card details from text"""
+        """
+        Extract and format card details from text with improved pattern matching
+        Handles various formats including:
+        - 4663490004132950|09|26|397|19131|Lakesha Bass|...
+        - CCNUM: 4034465129749674 CVV: 029 EXP: 09/2033
+        - 4111111111111111 12/25 123
+        - 4111 1111 1111 1111 12 2025 123
+        """
         if not text:
             return None
-        text = text.replace('\n', ' ').replace('/', ' ')
-        numbers = re.findall(r'\d+', text)
-        cc = mm = yy = cvv = ''
-        for part in numbers:
-            if len(part) == 16:
-                cc = part
-            elif len(part) == 4 and part.startswith('20'):
-                yy = part
-            elif len(part) == 2 and int(part) <= 12 and mm == '':
-                mm = part
-            elif len(part) == 2 and not part.startswith('20') and yy == '':
-                yy = '20' + part
-            elif len(part) in [3, 4] and cvv == '':
-                cvv = part
-        return f"{cc}|{mm}|{yy}|{cvv}" if cc and mm and yy and cvv else None
+            
+        # Remove any non-essential characters
+        text = re.sub(r'[^\d|/\s]', ' ', text)
+        
+        # Try to find card number first (16 digits, possibly with spaces)
+        cc_match = re.search(r'(?:\D|^)(\d{4}\s?\d{4}\s?\d{4}\s?\d{4})(?:\D|$)', text)
+        if not cc_match:
+            return None
+            
+        cc = cc_match.group(1).replace(' ', '')
+        
+        # Find expiration - could be MM/YY, MM/YYYY, MM YY, MM|YY, etc.
+        exp_match = re.search(r'(\d{1,2})[ /|](\d{2,4})', text)
+        if not exp_match:
+            return None
+            
+        mm = exp_match.group(1).zfill(2)
+        yy = exp_match.group(2)
+        
+        # Convert 2-digit year to 4-digit
+        if len(yy) == 2:
+            yy = '20' + yy if int(yy) < 30 else '19' + yy
+        
+        # Find CVV - 3 or 4 digits after expiration or card number
+        cvv_match = re.search(r'(?:\D|^)(\d{3,4})(?:\D|$)', text[exp_match.end():])
+        if not cvv_match:
+            # Try to find CVV anywhere in the text if not found after exp
+            cvv_match = re.search(r'(?:cvv|security.?code)\D*(\d{3,4})', text, re.I)
+            if not cvv_match:
+                return None
+                
+        cvv = cvv_match.group(1)
+        
+        return f"{cc}|{mm}|{yy}|{cvv}"
 
     def generate_user_agent(self):
         """Generate random user agent"""
@@ -231,10 +257,10 @@ Contact @mhitzxg for
                     
                     # Add to results
                     results.append(f"""
-Card: {cc_parts[0]} | {cc_parts[1]} | {cc_parts[2]} | {cc_parts[3]}
-Status: {status}
-Response: {result}
-Time: {random.uniform(0.8, 1.5):.2f}s
+💳 *Card {index}:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
+📊 *Status:* {status}
+📝 *Response:* `{result}`
+⏱ *Time:* {random.uniform(0.8, 1.5):.2f}s
 ------------------------------------
 """)
                     
@@ -265,13 +291,18 @@ Time: {random.uniform(0.8, 1.5):.2f}s
                     
                 except Exception as e:
                     logger.error(f"Error processing card {index}: {e}")
+                    results.append(f"""
+💳 *Card {index}:* `{cc}`
+❌ *Error Processing Card*
+⚠️ *Error:* `{str(e)}`
+------------------------------------
+""")
                     continue
             
             # Final summary with all results
             success_rate = (approved/total)*100 if total > 0 else 0
             try:
-                self.bot.edit_message_text(
-                    f"""
+                final_message = f"""
 ╔═══════════════════════╗
   🎉 *MASS CHECK COMPLETE* 🎉  
 ╚═══════════════════════╝
@@ -286,12 +317,33 @@ Time: {random.uniform(0.8, 1.5):.2f}s
 🕒 *Completed at:* {time.strftime('%H:%M:%S')}
 💎 *Thank you for using Premium CC Checker*
 
-{'═══════════════════════\n'.join(results)}
-                    """,
-                    chat_id,
-                    status_msg.message_id,
-                    parse_mode='Markdown'
-                )
+═══════════════════════
+🔍 *Detailed Results:*
+{''.join(results)}
+                """
+                
+                # Split message if too long (Telegram has 4096 char limit)
+                if len(final_message) > 4000:
+                    part1 = final_message[:4000]
+                    part2 = final_message[4000:]
+                    self.bot.edit_message_text(
+                        part1,
+                        chat_id,
+                        status_msg.message_id,
+                        parse_mode='Markdown'
+                    )
+                    self.bot.send_message(
+                        chat_id,
+                        part2,
+                        parse_mode='Markdown'
+                    )
+                else:
+                    self.bot.edit_message_text(
+                        final_message,
+                        chat_id,
+                        status_msg.message_id,
+                        parse_mode='Markdown'
+                    )
             except Exception as e:
                 logger.error(f"Error sending final message: {e}")
                 # Try sending as a new message if edit fails
@@ -350,7 +402,11 @@ Declined: {declined}
                     "❌ *Invalid Format!*\n\n"
                     "ℹ️ Please use:\n"
                     "`/chk 4111111111111111|12|2025|123`\n\n"
-                    "🔍 Or reply to a message containing CC details",
+                    "🔍 Or reply to a message containing CC details\n"
+                    "Supported formats:\n"
+                    "- 4663490004132950|09|26|397|...\n"
+                    "- CCNUM: 4034465129749674 CVV: 029 EXP: 09/2033\n"
+                    "- 4111 1111 1111 1111 12/25 123",
                     parse_mode='Markdown'
                 )
 
@@ -388,7 +444,8 @@ Declined: {declined}
 ╔═══════════════════════╗
   💳 Card Check Complete 💳  
 ╚═══════════════════════╝
-Response:
+🔹 *Card:* `{cc}`
+📝 *Response:*
 {result}
 
 🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
@@ -397,7 +454,8 @@ Response:
                 self.bot.edit_message_text(
                     response_text,
                     msg.chat.id,
-                    processing_msg.message_id
+                    processing_msg.message_id,
+                    parse_mode='Markdown'
                 )
                 
             except Exception as e:
