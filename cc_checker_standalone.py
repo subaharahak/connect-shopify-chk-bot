@@ -42,7 +42,7 @@ def ping():
 class PremiumCcChecker:
     def __init__(self):
         self.bot = telebot.TeleBot(BOT_TOKEN)
-        self.load_data()
+        self.load_users()  # Changed from load_data to load_users
         self.register_handlers()
         
         self.START_MESSAGE = """
@@ -80,86 +80,26 @@ Contact @mhitzxg for
             "⚡ Finalizing Transaction Check..."
         ]
 
-    # ... [previous methods unchanged until clean_response] ...
-
-    def clean_response(self, text):
-        """Remove all HTML tags and unwanted formatting"""
-        # First remove <pre> tags and their contents
-        text = re.sub(r'<pre[^>]*>.*?</pre>', '', text, flags=re.DOTALL)
-        # Then remove all other HTML tags
-        text = re.sub(r'<[^>]+>', '', text)
-        # Remove all backslashes (raw output only)
-        text = text.replace('\\', '')
-        return text.strip()
-
-    def check_card(self, cc_line):
+    def load_users(self):  # Renamed from load_data to load_users
         try:
-            url = f"{GATEWAY_URL}?lista={cc_line}"
-            headers = {"User-Agent": self.generate_user_agent()}
-            response = requests.get(url, headers=headers, timeout=20)
+            with open("authorized.json", "r") as f:
+                self.AUTHORIZED_USERS = json.load(f)
+        except:
+            self.AUTHORIZED_USERS = {}
             
-            # Get completely raw response without any processing
-            raw_response = response.text
-            
-            # Only clean HTML tags and backslashes, keep everything else
-            clean_result = self.clean_response(raw_response)
-            
-            return clean_result
-        except Exception as e:
-            logger.error(f"Gateway error: {e}")
-            return f"❌ Gateway Error: {str(e)}"
+        try:
+            with open("admins.json", "r") as f:
+                self.ADMIN_IDS = json.load(f)
+        except:
+            self.ADMIN_IDS = [MAIN_ADMIN_ID]
 
-    # ... [rest of the methods remain exactly the same] ...
+    def save_data(self):
+        with open("authorized.json", "w") as f:
+            json.dump(self.AUTHORIZED_USERS, f)
+        with open("admins.json", "w") as f:
+            json.dump(self.ADMIN_IDS, f)
 
-    def start_mass_check(self, chat_id, cc_lines):
-        total = len(cc_lines)
-        approved = declined = checked = 0
-        processing_delay = 1.2
-
-        start_msg = self.bot.send_message(
-            chat_id,
-            f"""
-╔══════════════════════╗
-  🔮 *MASS CHECK INITIATED* 🔮
-╚══════════════════════╝
-
-⚡ *Premium CC Checker - V2*
-📅 *Date:* {time.strftime('%Y-%m-%d %H:%M:%S')}
-
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-📊 *Total Cards:* `{total}`
-✅ *Approved:* `0`
-❌ *Declined:* `0`
-⏳ *Processing:* `0/{total}`
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-⚙️ *System Status:* `ACTIVE`
-🌐 *Gateway:* `PREMIUM SHOPIFY`
-            """,
-            parse_mode='Markdown'
-        )
-
-        def send_card_result(index, total, cc, result, status):
-            emoji = "✅" if status == "APPROVED" else "❌"
-            header = f"{emoji} *CARD {index}/{total} - {status}* {emoji}"
-            
-            cc_parts = cc.split('|')
-            card_info = f"""
-💳 *Card Number:* `{cc_parts[0]}`
-📅 *Expiry:* `{cc_parts[1]}/{cc_parts[2]}`
-🔒 *CVV:* `{cc_parts[3]}`
-
-🔄 *Response:*
-{result}
-"""
-            footer = f"""
-⏱️ *Processed in:* `{random.uniform(0.8, 1.5):.2f}s`
-🕒 {time.strftime('%H:%M:%S')}
-⚡ *Powered by Premium CC Checker*
-"""
-            return f"{header}\n{card_info}\n{footer}"
-
-        # ... [rest of the mass check method remains unchanged] ...
+    # ... [rest of your methods remain exactly the same] ...
 
 def run_flask():
     app.run(host='0.0.0.0', port=8080)
