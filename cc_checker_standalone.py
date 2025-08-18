@@ -122,13 +122,11 @@ Contact @mhitzxg for
         ])
 
     def clean_response(self, text):
-        """Clean gateway response"""
-        text = re.sub(r'<[^>]+>', '', text)  # Remove HTML tags
-        text = text.replace('\\', '')  # Remove all backslashes
+        """Return raw response without any cleaning"""
         return text.strip()
 
     def check_card(self, cc_line):
-        """Check card via gateway"""
+        """Check card via gateway and return raw response"""
         try:
             url = f"{GATEWAY_URL}?lista={cc_line}"
             headers = {"User-Agent": self.generate_user_agent()}
@@ -164,13 +162,14 @@ Contact @mhitzxg for
         )
 
     def start_mass_check(self, chat_id, cc_lines):
-        """Process multiple cards with beautiful formatting"""
+        """Process multiple cards with single updating message"""
         total = len(cc_lines)
-        approved = declined = checked = 0
+        approved = declined = 0
         processing_delay = 1.2  # seconds between checks
-
+        results = []
+        
         # Send initial status message
-        self.bot.send_message(
+        status_msg = self.bot.send_message(
             chat_id,
             f"""
 ╔══════════════════════╗
@@ -191,12 +190,12 @@ Contact @mhitzxg for
         )
 
         def process_cards():
-            nonlocal approved, declined, checked
+            nonlocal approved, declined
             
             for index, cc in enumerate(cc_lines, 1):
                 try:
                     time.sleep(processing_delay)
-                    checked = index
+                    cc_parts = cc.split('|')
                     result = self.check_card(cc)
                     
                     # Determine status
@@ -207,23 +206,34 @@ Contact @mhitzxg for
                         declined += 1
                         status = "❌ DECLINED ❌"
                     
-                    # Send formatted result
-                    cc_parts = cc.split('|')
-                    self.bot.send_message(
-                        chat_id,
+                    # Add to results
+                    results.append(f"""
+Card: {cc_parts[0]} | {cc_parts[1]} | {cc_parts[2]} | {cc_parts[3]}
+Status: {status}
+Response: {result}
+Time: {random.uniform(0.8, 1.5):.2f}s
+------------------------------------
+""")
+                    
+                    # Update status message
+                    self.bot.edit_message_text(
                         f"""
-{status}
-💳 *Card Number:* `{cc_parts[0]}`
-📅 *Expiry:* `{cc_parts[1]}/{cc_parts[2]}`
-🔒 *CVV:* `{cc_parts[3]}`
-
-🔄 *Response:*
-{result}
-
-⏱️ *Processed in:* `{random.uniform(0.8, 1.5):.2f}s`
-🕒 {time.strftime('%H:%M:%S')}
-⚡ *Powered by Premium CC Checker*
+╔══════════════════════╗
+  🔮 *MASS CHECK IN PROGRESS* 🔮  
+╚══════════════════════╝
+⚡ *Premium CC Checker - V2*
+📅 *Date:* {time.strftime('%Y-%m-%d %H:%M:%S')}
+▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+📊 *Total Cards:* `{total}`
+✅ *Approved:* `{approved}`
+❌ *Declined:* `{declined}`
+⏳ *Processing:* `{index}/{total}`
+▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+⚙️ *System Status:* `ACTIVE`
+🌐 *Gateway:* `PREMIUM SHOPIFY`
                         """,
+                        chat_id,
+                        status_msg.message_id,
                         parse_mode='Markdown'
                     )
                     
@@ -233,8 +243,7 @@ Contact @mhitzxg for
             
             # Final summary
             success_rate = (approved/total)*100 if total > 0 else 0
-            self.bot.send_message(
-                chat_id,
+            self.bot.edit_message_text(
                 f"""
 ╔══════════════════════╗
   🏁 *MASS CHECK COMPLETE* 🏁  
@@ -249,7 +258,11 @@ Contact @mhitzxg for
 ⚡ *System Shutdown:* `NORMAL`
 🕒 *Completed at:* {time.strftime('%H:%M:%S')}
 💎 *Thank you for using Premium CC Checker*
+
+{'▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰\n'.join(results)}
                 """,
+                chat_id,
+                status_msg.message_id,
                 parse_mode='Markdown'
             )
 
@@ -329,7 +342,8 @@ Contact @mhitzxg for
                 
                 self.bot.edit_message_text(
                     f"✨ *Card Check Complete* ✨\n\n"
-                    f"{result}\n\n"
+                    f"Card: {cc}\n"
+                    f"Response:\n{result}\n\n"
                     f"🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"⚡ Powered by Premium CC Checker",
                     msg.chat.id,
