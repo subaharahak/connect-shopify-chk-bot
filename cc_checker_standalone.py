@@ -11,14 +11,13 @@ import logging
 from telebot.types import (InlineKeyboardMarkup, InlineKeyboardButton, 
                           ReplyKeyboardMarkup, KeyboardButton)
 
-# ==================== CONFIGURATION ====================
+# Configuration
 BOT_TOKEN = "8228704791:AAH85VvWM1HK0-8EEiJKh533Gc3-ul5r-x8"
 MAIN_ADMIN_ID = 5103348494
 MAX_CARDS_PER_MCHK = 10
 GATEWAY_URL = "https://chk-for-shopify.onrender.com"
-# =======================================================
 
-# Configure logging
+# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -42,45 +41,13 @@ def ping():
 class PremiumCcChecker:
     def __init__(self):
         self.bot = telebot.TeleBot(BOT_TOKEN)
-        self.load_users()  # Changed from load_data to load_users
+        self.load_data()  # Correct method name
         self.register_handlers()
         
-        self.START_MESSAGE = """
-✨🔥 *𝕊ℍ𝕆ℙ𝕀𝔽𝕐 ℙℝ𝕆 ℂℍ𝔼ℂ�𝔼ℝ 𝕍𝟚* 🔥✨
+        # Rest of your initialization code...
 
-╔═══════════════════════╗
-  💳 *PREMIUM CC CHECKER* 💳  
-╚═══════════════════════╝
-
-✧･ﾟ: *✧ Commands ✧* :･ﾟ✧
-
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-🛠️ */chk* - Instant Single Card Check
-├─ Format: `/chk 4111111111111111|12|2025|123`
-└─ Checks cards in 0.5s lightning speed!
-
-📊 */mchk* - Bulk Mass Checker 
-├─ Max 10 cards per batch
-└─ Supports .txt files with auto-formatting
-
-🔐 */auth* - Authorize Users/Groups
-├─ Format: `/auth user_id` (admin only)
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-💎 *VIP Access:* 
-Contact @mhitzxg for 
-⚡ *Elite Membership* ⚡
-
-🌌 *Current Status:*
-✅ Operational | 🚀 Turbo Mode Enabled
-"""
-        self.PROCESSING_ANIMATION = [
-            "🔍 Analyzing Card Patterns...",
-            "🔒 Verifying with Payment Gateways...",
-            "🌐 Routing Through Global Nodes...",
-            "⚡ Finalizing Transaction Check..."
-        ]
-
-    def load_users(self):  # Renamed from load_data to load_users
+    def load_data(self):  # Corrected method name
+        """Load authorized users and admin data"""
         try:
             with open("authorized.json", "r") as f:
                 self.AUTHORIZED_USERS = json.load(f)
@@ -94,17 +61,20 @@ Contact @mhitzxg for
             self.ADMIN_IDS = [MAIN_ADMIN_ID]
 
     def save_data(self):
+        """Save current data to files"""
         with open("authorized.json", "w") as f:
             json.dump(self.AUTHORIZED_USERS, f)
         with open("admins.json", "w") as f:
             json.dump(self.ADMIN_IDS, f)
 
-    # ... [rest of your methods remain exactly the same] ...
+    # ... [rest of your methods remain unchanged] ...
 
 def run_flask():
+    """Run Flask web server"""
     app.run(host='0.0.0.0', port=8080)
 
 def main():
+    """Main entry point"""
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
