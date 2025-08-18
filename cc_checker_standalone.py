@@ -418,7 +418,7 @@ def main():
 
     bot = PremiumCcChecker()
     logger.info("🚀 Starting Premium CC Checker Bot")
-    bot.run()
+    bot.bot.polling(none_stop=True)
 
 if __name__ == '__main__':
     main()
