@@ -32,7 +32,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def health_check():
-    return "🔥 Premium CC Checker is Operational", 200
+    return "💳 Premium CC Checker is Operational", 200
 
 @app.route('/ping')
 def ping():
@@ -45,30 +45,28 @@ class PremiumCcChecker:
         self.register_handlers()
         
         self.START_MESSAGE = """
-✨🔥 *𝕊ℍ𝕆ℙ𝕀𝔽𝕐 ℙℝ𝕆 ℂℍ𝔼ℂ�𝔼ℝ 𝕍𝟚* 🔥✨
-╔═══════════════════════╗
-  💳 *PREMIUM CC CHECKER* 💳  
-╚═══════════════════════╝
-✧･ﾟ: *✧ Commands ✧* :･ﾟ✧
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-🛠️ */chk* - Instant Single Card Check
-├─ Format: `/chk 4111111111111111|12|2025|123`
-└─ Checks cards in 0.5s lightning speed!
-📊 */mchk* - Bulk Mass Checker 
-├─ Max 10 cards per batch
-└─ Supports .txt files with auto-formatting
-🔐 */auth* - Authorize Users/Groups
-├─ Format: `/auth user_id` (admin only)
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+╔══💳 *PREMIUM CC CHECKER* 💳══╗
+║                              ║
+  🔥 *Commands* 🔥  
+══════════════════════
+🔹 */chk* - Instant Single Card Check
+➖ Format: `/chk 4111111111111111|12|2025|123`
+➖ Checks cards in 0.5s lightning speed!
+📁 */mchk* - Bulk Mass Checker 
+➖ Max 10 cards per batch
+➖ Supports .txt files with auto-formatting
+👑 */auth* - Authorize Users/Groups
+➖ Format: `/auth user_id` (admin only)
+══════════════════════
 💎 *VIP Access:* 
 Contact @mhitzxg for 
 ⚡ *Elite Membership* ⚡
-🌌 *Current Status:*
+📊 *Current Status:*
 ✅ Operational | 🚀 Turbo Mode Enabled
 """
         self.PROCESSING_ANIMATION = [
             "🔍 Analyzing Card Patterns...",
-            "🔒 Verifying with Payment Gateways...",
+            "🔎 Verifying with Payment Gateways...",
             "🌐 Routing Through Global Nodes...",
             "⚡ Finalizing Transaction Check..."
         ]
@@ -122,7 +120,9 @@ Contact @mhitzxg for
         ])
 
     def clean_response(self, text):
-        """Return raw response without any cleaning"""
+        """Clean response from any unwanted formatting"""
+        # Remove <pre> tags if present
+        text = re.sub(r'<\/?pre>', '', text)
         return text.strip()
 
     def check_card(self, cc_line):
@@ -157,7 +157,7 @@ Contact @mhitzxg for
             "🔒 *Access Denied* 🔒\n\n"
             "This is a premium service requiring authorization.\n\n"
             "Contact @mhitzxg for access\n"
-            "🛡️ Your ID: `{}`".format(msg.from_user.id),
+            "🆔 Your ID: `{}`".format(msg.from_user.id),
             parse_mode='Markdown'
         )
 
@@ -172,18 +172,18 @@ Contact @mhitzxg for
         status_msg = self.bot.send_message(
             chat_id,
             f"""
-╔══════════════════════╗
-  🔮 *MASS CHECK INITIATED* 🔮  
-╚══════════════════════╝
+╔═══════════════════════╗
+  📊 *MASS CHECK INITIATED* 📊  
+╚═══════════════════════╝
 ⚡ *Premium CC Checker - V2*
 📅 *Date:* {time.strftime('%Y-%m-%d %H:%M:%S')}
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-📊 *Total Cards:* `{total}`
+═══════════════════════
+📁 *Total Cards:* `{total}`
 ✅ *Approved:* `0`
 ❌ *Declined:* `0`
-⏳ *Processing:* `0/{total}`
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-⚙️ *System Status:* `ACTIVE`
+🔄 *Processing:* `0/{total}`
+═══════════════════════
+🛡️ *System Status:* `ACTIVE`
 🌐 *Gateway:* `PREMIUM SHOPIFY`
             """,
             parse_mode='Markdown'
@@ -216,55 +216,74 @@ Time: {random.uniform(0.8, 1.5):.2f}s
 """)
                     
                     # Update status message
-                    self.bot.edit_message_text(
-                        f"""
-╔══════════════════════╗
-  🔮 *MASS CHECK IN PROGRESS* 🔮  
-╚══════════════════════╝
+                    try:
+                        self.bot.edit_message_text(
+                            f"""
+╔═══════════════════════╗
+  📊 *MASS CHECK IN PROGRESS* 📊  
+╚═══════════════════════╝
 ⚡ *Premium CC Checker - V2*
 📅 *Date:* {time.strftime('%Y-%m-%d %H:%M:%S')}
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-📊 *Total Cards:* `{total}`
+═══════════════════════
+📁 *Total Cards:* `{total}`
 ✅ *Approved:* `{approved}`
 ❌ *Declined:* `{declined}`
-⏳ *Processing:* `{index}/{total}`
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-⚙️ *System Status:* `ACTIVE`
+🔄 *Processing:* `{index}/{total}`
+═══════════════════════
+🛡️ *System Status:* `ACTIVE`
 🌐 *Gateway:* `PREMIUM SHOPIFY`
-                        """,
-                        chat_id,
-                        status_msg.message_id,
-                        parse_mode='Markdown'
-                    )
+                            """,
+                            chat_id,
+                            status_msg.message_id,
+                            parse_mode='Markdown'
+                        )
+                    except Exception as e:
+                        logger.error(f"Error updating status: {e}")
                     
                 except Exception as e:
                     logger.error(f"Error processing card {index}: {e}")
                     continue
             
-            # Final summary
+            # Final summary with all results
             success_rate = (approved/total)*100 if total > 0 else 0
-            self.bot.edit_message_text(
-                f"""
-╔══════════════════════╗
-  🏁 *MASS CHECK COMPLETE* 🏁  
-╚══════════════════════╝
-🎯 *Final Statistics:*
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-📊 *Total Cards:* `{total}`
+            try:
+                self.bot.edit_message_text(
+                    f"""
+╔═══════════════════════╗
+  🎉 *MASS CHECK COMPLETE* 🎉  
+╚═══════════════════════╝
+📈 *Final Statistics:*
+═══════════════════════
+📁 *Total Cards:* `{total}`
 ✅ *Approved:* `{approved}` ({success_rate:.2f}%)
 ❌ *Declined:* `{declined}`
 ⏱️ *Total Time:* `{total * processing_delay:.2f}s`
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+═══════════════════════
 ⚡ *System Shutdown:* `NORMAL`
 🕒 *Completed at:* {time.strftime('%H:%M:%S')}
 💎 *Thank you for using Premium CC Checker*
 
-{'▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰\n'.join(results)}
-                """,
-                chat_id,
-                status_msg.message_id,
-                parse_mode='Markdown'
-            )
+{'═══════════════════════\n'.join(results)}
+                    """,
+                    chat_id,
+                    status_msg.message_id,
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.error(f"Error sending final message: {e}")
+                # Try sending as a new message if edit fails
+                self.bot.send_message(
+                    chat_id,
+                    f"""
+🎉 *MASS CHECK COMPLETE* 🎉
+📈 *Final Statistics:*
+Total Cards: {total}
+Approved: {approved} ({success_rate:.2f}%)
+Declined: {declined}
+{'═══════════════════════\n'.join(results)}
+                    """,
+                    parse_mode='Markdown'
+                )
 
         threading.Thread(target=process_cards).start()
 
@@ -277,7 +296,7 @@ Time: {random.uniform(0.8, 1.5):.2f}s
                 KeyboardButton('/chk'),
                 KeyboardButton('/mchk'),
                 KeyboardButton('/auth'),
-                KeyboardButton('🆘 Contact Admin'),
+                KeyboardButton('📞 Contact Admin'),
                 KeyboardButton('📊 Bot Status')
             )
             self.bot.send_message(
@@ -305,7 +324,7 @@ Time: {random.uniform(0.8, 1.5):.2f}s
                 return self.bot.reply_to(
                     msg,
                     "❌ *Invalid Format!*\n\n"
-                    "💳 Please use:\n"
+                    "ℹ️ Please use:\n"
                     "`/chk 4111111111111111|12|2025|123`\n\n"
                     "🔍 Or reply to a message containing CC details",
                     parse_mode='Markdown'
@@ -313,7 +332,7 @@ Time: {random.uniform(0.8, 1.5):.2f}s
 
             processing_msg = self.bot.reply_to(
                 msg,
-                "🔄 *Initializing Premium Check System...*\n"
+                "⚙️ *Initializing Premium Check System...*\n"
                 "⚡ Lightning Verification Protocol Activated",
                 parse_mode='Markdown'
             )
@@ -340,23 +359,29 @@ Time: {random.uniform(0.8, 1.5):.2f}s
                 result = self.check_card(cc)
                 stop_event.set()
                 
+                # Format the response without Markdown to avoid parsing errors
+                response_text = f"""
+╔═══════════════════════╗
+  💳 Card Check Complete 💳  
+╚═══════════════════════╝
+
+Card: {cc}
+Response:
+{result}
+
+🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
+⚡ Powered by Premium CC Checker
+"""
                 self.bot.edit_message_text(
-                    f"✨ *Card Check Complete* ✨\n\n"
-                    f"Card: {cc}\n"
-                    f"Response:\n{result}\n\n"
-                    f"🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                    f"⚡ Powered by Premium CC Checker",
+                    response_text,
                     msg.chat.id,
-                    processing_msg.message_id,
-                    parse_mode='Markdown'
+                    processing_msg.message_id
                 )
                 
             except Exception as e:
                 stop_event.set()
                 self.bot.edit_message_text(
-                    f"❌ *System Error* ❌\n\n"
-                    f"Error: {str(e)}\n\n"
-                    f"🛠️ Please try again or contact support",
+                    f"❌ *System Error* ❌\n\nError: {str(e)}\n\n🛠️ Please try again or contact support",
                     msg.chat.id,
                     processing_msg.message_id,
                     parse_mode='Markdown'
