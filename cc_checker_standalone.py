@@ -116,14 +116,17 @@ Contact @mhitzxg for
         if not text:
             return None
             
-        # Remove any non-essential characters
+        # Remove any non-essential characters but keep | and /
         text = re.sub(r'[^\d|/\s]', ' ', text)
         
-        # Try to find card number first (16 digits, possibly with spaces)
+        # Try to find card number first (13-19 digits, possibly with spaces)
         cc_match = re.search(r'(?:\D|^)(\d{4}\s?\d{4}\s?\d{4}\s?\d{4})(?:\D|$)', text)
         if not cc_match:
-            return None
-            
+            # Try shorter patterns if 16 digits not found
+            cc_match = re.search(r'(?:\D|^)(\d{12,19})(?:\D|$)', text)
+            if not cc_match:
+                return None
+                
         cc = cc_match.group(1).replace(' ', '')
         
         # Find expiration - could be MM/YY, MM/YYYY, MM YY, MM|YY, etc.
@@ -158,8 +161,10 @@ Contact @mhitzxg for
         ])
 
     def clean_response(self, text):
-        """Clean response from any unwanted formatting"""
+        """Clean response from any unwanted formatting and escape markdown"""
         text = re.sub(r'<\/?pre>', '', text)
+        # Escape markdown special characters
+        text = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
         return text.strip()
 
     def check_card(self, cc_line):
@@ -439,14 +444,14 @@ Declined: {declined}
                 result = self.check_card(cc)
                 stop_event.set()
                 
-                # Format the response without Markdown to avoid parsing errors
+                # Format the response with proper escaping
                 response_text = f"""
 ╔═══════════════════════╗
-  💳 Card Check Complete 💳  
+  💳 *Card Check Complete* 💳  
 ╚═══════════════════════╝
 🔹 *Card:* `{cc}`
 📝 *Response:*
-{result}
+`{result}`
 
 🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
 ⚡ Powered by Premium CC Checker
@@ -489,11 +494,40 @@ Declined: {declined}
             else:
                 text = msg.reply_to_message.text or ""
 
+            # Extract all possible cards from the text
             cc_lines = []
-            for line in text.splitlines()[:MAX_CARDS_PER_MCHK]:
-                norm = self.normalize_card(line.strip())
-                if norm:
-                    cc_lines.append(norm)
+            for line in text.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                # Try to find all cards in the line (supports multiple cards per line)
+                card_matches = re.finditer(
+                    r'(?:\b|^)(\d{13,19})\b[\s|/]*(\d{1,2})\b[\s|/]*(\d{2,4})\b[\s|/]*(\d{3,4})\b',
+                    line
+                )
+                
+                for match in card_matches:
+                    cc = match.group(1)
+                    mm = match.group(2).zfill(2)
+                    yy = match.group(3)
+                    cvv = match.group(4)
+                    
+                    # Convert 2-digit year to 4-digit
+                    if len(yy) == 2:
+                        yy = '20' + yy if int(yy) < 30 else '19' + yy
+                    
+                    cc_lines.append(f"{cc}|{mm}|{yy}|{cvv}")
+                    if len(cc_lines) >= MAX_CARDS_PER_MCHK:
+                        break
+                
+                # Also try to normalize the entire line as a single card
+                if len(cc_lines) < MAX_CARDS_PER_MCHK:
+                    norm = self.normalize_card(line)
+                    if norm and norm not in cc_lines:
+                        cc_lines.append(norm)
+                        if len(cc_lines) >= MAX_CARDS_PER_MCHK:
+                            break
 
             if not cc_lines:
                 return self.bot.send_message(response_chat, "❌ No valid cards found.")
