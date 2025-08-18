@@ -56,7 +56,7 @@ class PremiumCcChecker:
 ➖ Max 10 cards per batch
 ➖ Supports .txt files with auto-formatting
 👑 */auth* - Authorize Users/Groups
-➖ Format: `/auth user_id` (admin only)
+➖ Format: `/auth user_id` or `/auth group group_id` (admin only)
 ══════════════════════
 💎 *VIP Access:* 
 Contact @mhitzxg for 
@@ -427,8 +427,29 @@ Response:
             
             args = msg.text.split()
             if len(args) < 2:
-                return self.bot.reply_to(msg, "Usage: /auth user_id")
+                return self.bot.reply_to(msg, "Usage: /auth user_id or /auth group group_id")
             
+            # Check if authorizing a group
+            if len(args) >= 3 and args[1].lower() == "group":
+                try:
+                    group_id = int(args[2])
+                    # Group IDs are negative numbers in Telegram
+                    if group_id > 0:
+                        group_id = -group_id
+                    
+                    self.AUTHORIZED_USERS[str(group_id)] = "forever"
+                    self.save_data()
+                    
+                    return self.bot.reply_to(
+                        msg,
+                        f"✅ Successfully authorized group {group_id}\n"
+                        f"Access granted: Permanent",
+                        parse_mode='Markdown'
+                    )
+                except ValueError:
+                    return self.bot.reply_to(msg, "Invalid group ID format! Group IDs should be numbers.")
+            
+            # Original user authorization code
             user_id = args[1]
             try:
                 user_id = int(user_id)
@@ -459,4 +480,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
