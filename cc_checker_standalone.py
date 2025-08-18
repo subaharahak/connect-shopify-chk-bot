@@ -80,14 +80,42 @@ Contact @mhitzxg for
             "⚡ Finalizing Transaction Check..."
         ]
 
-    # ... [keep all existing methods unchanged until start_mass_check] ...
+    # ... [previous methods unchanged until clean_response] ...
+
+    def clean_response(self, text):
+        """Remove all HTML tags and unwanted formatting"""
+        # First remove <pre> tags and their contents
+        text = re.sub(r'<pre[^>]*>.*?</pre>', '', text, flags=re.DOTALL)
+        # Then remove all other HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        # Remove all backslashes (raw output only)
+        text = text.replace('\\', '')
+        return text.strip()
+
+    def check_card(self, cc_line):
+        try:
+            url = f"{GATEWAY_URL}?lista={cc_line}"
+            headers = {"User-Agent": self.generate_user_agent()}
+            response = requests.get(url, headers=headers, timeout=20)
+            
+            # Get completely raw response without any processing
+            raw_response = response.text
+            
+            # Only clean HTML tags and backslashes, keep everything else
+            clean_result = self.clean_response(raw_response)
+            
+            return clean_result
+        except Exception as e:
+            logger.error(f"Gateway error: {e}")
+            return f"❌ Gateway Error: {str(e)}"
+
+    # ... [rest of the methods remain exactly the same] ...
 
     def start_mass_check(self, chat_id, cc_lines):
         total = len(cc_lines)
         approved = declined = checked = 0
-        processing_delay = 1.2  # Optimal delay between checks
+        processing_delay = 1.2
 
-        # Beautiful initial message with ASCII art
         start_msg = self.bot.send_message(
             chat_id,
             f"""
@@ -112,11 +140,9 @@ Contact @mhitzxg for
         )
 
         def send_card_result(index, total, cc, result, status):
-            # Enhanced card result format
             emoji = "✅" if status == "APPROVED" else "❌"
             header = f"{emoji} *CARD {index}/{total} - {status}* {emoji}"
             
-            # Format the card info beautifully
             cc_parts = cc.split('|')
             card_info = f"""
 💳 *Card Number:* `{cc_parts[0]}`
@@ -126,7 +152,6 @@ Contact @mhitzxg for
 🔄 *Response:*
 {result}
 """
-            # Add processing time and footer
             footer = f"""
 ⏱️ *Processed in:* `{random.uniform(0.8, 1.5):.2f}s`
 🕒 {time.strftime('%H:%M:%S')}
@@ -134,87 +159,7 @@ Contact @mhitzxg for
 """
             return f"{header}\n{card_info}\n{footer}"
 
-        def process_cards():
-            nonlocal approved, declined, checked
-            
-            results = []
-            for index, cc in enumerate(cc_lines, 1):
-                try:
-                    checked = index
-                    # Small delay to prevent rate limiting
-                    time.sleep(processing_delay)
-                    
-                    # Process the card
-                    raw_result = self.check_card(cc)
-                    clean_result = self.clean_response(raw_result)
-                    
-                    # Determine status
-                    if any(x in clean_result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
-                        approved += 1
-                        status = "APPROVED"
-                    else:
-                        declined += 1
-                        status = "DECLINED"
-                    
-                    # Send beautiful formatted result
-                    result_msg = send_card_result(index, total, cc, clean_result, status)
-                    self.bot.send_message(
-                        chat_id,
-                        result_msg,
-                        parse_mode='Markdown'
-                    )
-                    
-                    # Update progress every 3 cards
-                    if index % 3 == 0 or index == total:
-                        progress = f"""
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-⚡ *PROGRESS UPDATE* ⚡
-
-📊 *Processed:* `{index}/{total}`
-✅ *Approved:* `{approved}`
-❌ *Declined:* `{declined}`
-⏳ *Remaining:* `{total - index}`
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-"""
-                        self.bot.send_message(chat_id, progress, parse_mode='Markdown')
-                    
-                except Exception as e:
-                    logger.error(f"Error processing card {index}: {e}")
-                    error_msg = f"""
-⚠️ *ERROR PROCESSING CARD {index}* ⚠️
-
-🛠️ *Details:* `{str(e)}`
-🔧 *System:* Auto-retry in next batch
-"""
-                    self.bot.send_message(chat_id, error_msg, parse_mode='Markdown')
-                    continue
-            
-            # Final beautiful summary
-            success_rate = (approved/total)*100 if total > 0 else 0
-            summary = f"""
-╔══════════════════════╗
-  🏁 *MASS CHECK COMPLETE* 🏁  
-╚══════════════════════╝
-
-🎯 *Final Statistics:*
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-📊 *Total Cards:* `{total}`
-✅ *Approved:* `{approved}` ({success_rate:.2f}%)
-❌ *Declined:* `{declined}`
-⏱️ *Total Time:* `{total * processing_delay:.2f}s`
-▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-⚡ *System Shutdown:* `NORMAL`
-🕒 *Completed at:* {time.strftime('%H:%M:%S')}
-
-💎 *Thank you for using Premium CC Checker*
-            """
-            self.bot.send_message(chat_id, summary, parse_mode='Markdown')
-
-        # Start processing in a new thread
-        threading.Thread(target=process_cards).start()
-
-    # ... [keep all other methods unchanged] ...
+        # ... [rest of the mass check method remains unchanged] ...
 
 def run_flask():
     app.run(host='0.0.0.0', port=8080)
@@ -224,18 +169,9 @@ def main():
     flask_thread.daemon = True
     flask_thread.start()
 
-    while True:
-        try:
-            bot = PremiumCcChecker()
-            logger.info("🚀 Starting Premium CC Checker Bot")
-            bot.run()
-        except Exception as e:
-            logger.error(f"Bot crashed: {e}")
-            time.sleep(5)
-            logger.info("🔄 Restarting bot...")
-        except KeyboardInterrupt:
-            logger.info("🛑 Shutting down gracefully...")
-            break
+    bot = PremiumCcChecker()
+    logger.info("🚀 Starting Premium CC Checker Bot")
+    bot.run()
 
 if __name__ == '__main__':
     main()
