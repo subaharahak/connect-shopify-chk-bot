@@ -104,12 +104,12 @@ Contact @mhitzxg for
 
     def normalize_card(self, text):
         """
-        Improved card extraction with better pattern matching
+        Improved card extraction that properly handles MM/YY format
         """
         if not text:
             return None
             
-        # Remove unwanted characters but keep | / for delimiters
+        # Standardize separators
         text = re.sub(r'[^\d|/\s]', ' ', text)
         
         # Match CC number (13-19 digits)
@@ -120,16 +120,21 @@ Contact @mhitzxg for
         cc = cc_match.group(1).replace(' ', '')
         
         # Match expiration (mm/yy or mm/yyyy)
-        exp_match = re.search(r'(\d{1,2})[ /|](\d{2,4})', text)
+        exp_match = re.search(r'(\d{1,2})[ /](\d{2,4})', text)
         if not exp_match:
             return None
             
         mm = exp_match.group(1).zfill(2)
         yy = exp_match.group(2)
         
-        # Handle 2-digit year
+        # Handle 2-digit year (properly)
         if len(yy) == 2:
-            yy = '20' + yy if int(yy) < 30 else '19' + yy
+            current_year_short = time.strftime('%y')
+            current_century = time.strftime('%Y')[:2]
+            if int(yy) >= int(current_year_short):
+                yy = current_century + yy  # 2024 if current year is 2023 and yy is 24
+            else:
+                yy = str(int(current_century)+1) + yy  # 2024 if current year is 2023 and yy is 24
         
         # Match CVV (3-4 digits)
         cvv_match = re.search(r'(?:\D|^)(\d{3,4})(?:\D|$)', text[exp_match.end():])
@@ -168,6 +173,8 @@ Contact @mhitzxg for
                 r'(?:\b|^)(\d{4}\s?\d{4}\s?\d{4}\s?\d{4})\b[\s|/]*(\d{1,2})\b[\s|/]*(\d{2,4})\b[\s|/]*(\d{3,4})\b',
                 # Format with labels: CCNUM: 4034465129749674 CVV: 029 EXP: 09/2033
                 r'(?:cc|card|number)\D*(\d{13,19})\D*(?:exp|date)\D*(\d{1,2})\D*(\d{2,4})\D*(?:cvv|security)\D*(\d{3,4})',
+                # Format with MM/YY: 5597670076299187 04/27 747
+                r'(?:\b|^)(\d{13,19})\b.*?(\d{1,2})[/ ](\d{2})(?:\D|$).*?(\d{3,4})\b'
             ]
             
             for pattern in patterns:
@@ -178,8 +185,14 @@ Contact @mhitzxg for
                     yy = match.group(3)
                     cvv = match.group(4)
                     
-                    if len(yy) == 2:
-                        yy = '20' + yy if int(yy) < 30 else '19' + yy
+                    # Special handling for MM/YY format (2-digit year)
+                    if len(yy) == 2 and pattern == patterns[-1]:
+                        current_year_short = time.strftime('%y')
+                        current_century = time.strftime('%Y')[:2]
+                        if int(yy) >= int(current_year_short):
+                            yy = current_century + yy
+                        else:
+                            yy = str(int(current_century)+1) + yy
                     
                     card = f"{cc}|{mm}|{yy}|{cvv}"
                     if card not in cards:
@@ -200,16 +213,16 @@ Contact @mhitzxg for
         ])
 
     def clean_response(self, text):
-        """Clean response by removing unwanted characters and formatting"""
-        # Remove HTML tags
-        text = re.sub(r'<\/?[^>]+>', '', text)
-        # Remove backslashes
-        text = text.replace('\\', '')
-        # Remove forward slashes that aren't part of dates
-        text = re.sub(r'(?<!\d)/(?!\d)', '', text)
-        # Remove extra whitespace
-        text = ' '.join(text.split())
-        return text.strip()
+        """Clean response by removing unwanted formatting"""
+        # Remove box characters and emojis that break formatting
+        text = re.sub(r'[┏┓┗┛━↯🛒💳📩🏦🌎🕒⏱️👑💥]', '', text)
+        # Remove multiple spaces
+        text = re.sub(r'\s+', ' ', text).strip()
+        # Remove duplicate newlines
+        text = re.sub(r'\n+', '\n', text)
+        # Remove any remaining special characters that might break Markdown
+        text = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
+        return text
 
     def check_card(self, cc_line):
         """Check card via gateway and return cleaned response"""
@@ -300,11 +313,14 @@ Contact @mhitzxg for
                         declined += 1
                         status = "❌ DECLINED ❌"
                     
+                    # Format the result cleanly
+                    clean_result = "\n".join([line.strip() for line in result.split('\n') if line.strip()])
+                    
                     results.append(f"""
 💳 *Card {index}:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📊 *Status:* {status}
 📝 *Response:*
-{result}
+{clean_result}
 ⏱ *Time:* {random.uniform(0.8, 1.5):.2f}s
 ------------------------------------
 """)
@@ -345,7 +361,7 @@ Contact @mhitzxg for
             
             success_rate = (approved/total)*100 if total > 0 else 0
             
-            # Prepare final message parts
+            # Prepare final message with all results
             stats_part = f"""
 ╔═══════════════════════╗
   🎉 *MASS CHECK COMPLETE* 🎉  
@@ -377,24 +393,19 @@ Contact @mhitzxg for
                         parse_mode='Markdown'
                     )
                 else:
-                    # If too long, split into parts but keep stats in first message
-                    remaining_text = results_part
-                    first_message = stats_part + remaining_text[:2000] + "\n... (continued)"
+                    # If too long, send stats first then results as reply
                     self.bot.edit_message_text(
-                        first_message,
+                        stats_part,
                         chat_id,
                         status_msg.message_id,
                         parse_mode='Markdown'
                     )
-                    
-                    # Send remaining parts as replies
-                    remaining_text = remaining_text[2000:]
-                    while remaining_text:
-                        part = remaining_text[:4000]
-                        remaining_text = remaining_text[4000:]
+                    # Send results in chunks
+                    chunk_size = 4000
+                    for i in range(0, len(results_part), chunk_size):
                         self.bot.send_message(
                             chat_id,
-                            part,
+                            results_part[i:i+chunk_size],
                             parse_mode='Markdown'
                         )
             except Exception as e:
@@ -451,7 +462,8 @@ Contact @mhitzxg for
                     "Supported formats:\n"
                     "- 4663490004132950|09|26|397|...\n"
                     "- CCNUM: 4034465129749674 CVV: 029 EXP: 09/2033\n"
-                    "- 4111 1111 1111 1111 12/25 123",
+                    "- 4111 1111 1111 1111 12/25 123\n"
+                    "- 5597670076299187 04/27 747",
                     parse_mode='Markdown'
                 )
 
@@ -484,9 +496,8 @@ Contact @mhitzxg for
                 result = self.check_card(cc)
                 stop_event.set()
                 
-                # Ensure response doesn't contain problematic characters
-                result = self.clean_response(result)
                 cc_parts = cc.split('|')
+                clean_result = "\n".join([line.strip() for line in result.split('\n') if line.strip()])
                 
                 response_text = f"""
 ╔═══════════════════════╗
@@ -494,19 +505,16 @@ Contact @mhitzxg for
 ╚═══════════════════════╝
 🔹 *Card:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📝 *Response:*
-{result}
+{clean_result}
 
 🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
 ⚡ Powered by Premium CC Checker
 """
-                # Escape any Markdown special characters that might cause issues
-                response_text = re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', response_text)
-                
                 self.bot.edit_message_text(
                     response_text,
                     msg.chat.id,
                     processing_msg.message_id,
-                    parse_mode='MarkdownV2'
+                    parse_mode='Markdown'
                 )
                 
             except Exception as e:
