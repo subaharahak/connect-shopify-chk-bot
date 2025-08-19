@@ -213,11 +213,13 @@ Contact @mhitzxg for
         ])
 
     def clean_raw_response(self, text):
-        """Clean the raw response by removing unwanted backslashes and <pre> tags"""
-        # Remove <pre> tags
+        """Clean the raw response by removing unwanted characters"""
+        # Remove <pre> tags if present
         text = text.replace('<pre>', '').replace('</pre>', '')
-        # Remove extra backslashes
+        # Remove backslashes that escape special characters
         text = text.replace('\\', '')
+        # Remove forward slashes that might break Markdown
+        text = text.replace('/', '／')  # Replace with fullwidth slash
         return text.strip()
 
     def check_card(self, cc_line):
@@ -377,14 +379,23 @@ Contact @mhitzxg for
             final_message = stats_part + results_part
             
             try:
-                # Telegram has a 4096 character limit per message
+                # Send as plain text if too long for Markdown
                 if len(final_message) <= 4096:
-                    self.bot.edit_message_text(
-                        final_message,
-                        chat_id,
-                        status_msg.message_id,
-                        parse_mode='Markdown'
-                    )
+                    try:
+                        self.bot.edit_message_text(
+                            final_message,
+                            chat_id,
+                            status_msg.message_id,
+                            parse_mode='Markdown'
+                        )
+                    except:
+                        # Fallback to plain text if Markdown fails
+                        self.bot.edit_message_text(
+                            final_message,
+                            chat_id,
+                            status_msg.message_id,
+                            parse_mode=None
+                        )
                 else:
                     # If too long, send stats first then results as reply
                     self.bot.edit_message_text(
@@ -393,13 +404,13 @@ Contact @mhitzxg for
                         status_msg.message_id,
                         parse_mode='Markdown'
                     )
-                    # Send results in chunks
+                    # Send results in chunks as plain text
                     chunk_size = 4000
                     for i in range(0, len(results_part), chunk_size):
                         self.bot.send_message(
                             chat_id,
                             results_part[i:i+chunk_size],
-                            parse_mode='Markdown'
+                            parse_mode=None
                         )
             except Exception as e:
                 logger.error(f"Error sending final message: {e}")
@@ -493,30 +504,39 @@ Contact @mhitzxg for
                 
                 response_text = f"""
 ╔═══════════════════════╗
-  💳 *Card Check Complete* 💳  
+  💳 Card Check Complete 💳  
 ╚═══════════════════════╝
-🔹 *Card:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
-📝 *Response:*
+🔹 Card: {cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}
+📝 Response:
 {raw_result}
 
 🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
 ⚡ Powered by Premium CC Checker
 """
-                self.bot.edit_message_text(
-                    response_text,
-                    msg.chat.id,
-                    processing_msg.message_id,
-                    parse_mode='Markdown'
-                )
+                try:
+                    self.bot.edit_message_text(
+                        response_text,
+                        msg.chat.id,
+                        processing_msg.message_id,
+                        parse_mode='Markdown'
+                    )
+                except:
+                    # Fallback to plain text if Markdown fails
+                    self.bot.edit_message_text(
+                        response_text,
+                        msg.chat.id,
+                        processing_msg.message_id,
+                        parse_mode=None
+                    )
                 
             except Exception as e:
                 stop_event.set()
-                error_msg = f"❌ *System Error* ❌\n\nError: {str(e)}\n\n🛠️ Please try again or contact support"
+                error_msg = f"❌ System Error ❌\n\nError: {str(e)}\n\n🛠️ Please try again or contact support"
                 self.bot.edit_message_text(
                     error_msg,
                     msg.chat.id,
                     processing_msg.message_id,
-                    parse_mode='Markdown'
+                    parse_mode=None
                 )
 
         @self.bot.message_handler(commands=['mchk'])
