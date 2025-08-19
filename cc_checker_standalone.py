@@ -304,7 +304,7 @@ Contact @mhitzxg for
                     cc_parts = cc.split('|')
                     raw_result = self.check_card(cc)
                     
-                    if any(x in raw_result.lower() for x in ["charged", "cvv match", "approved"]):
+                    if any(x in raw_result.lower() for x in ["charged", "cvv match", "approved", "✅ 𝐀𝐏𝐏𝐑𝐎𝐕𝐄𝐃 𝐂𝐂"]):
                         approved += 1
                         status = "✅ APPROVED ✅"
                     else:
@@ -635,3 +635,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
