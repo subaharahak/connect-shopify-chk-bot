@@ -212,13 +212,18 @@ Contact @mhitzxg for
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
         ])
 
+    def escape_markdown(self, text):
+        """Escape Markdown special characters to prevent parsing errors"""
+        escape_chars = r'\_*[]()~`>#+-=|{}.!'
+        return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+
     def check_card(self, cc_line):
         """Check card via gateway and return raw response"""
         try:
             url = f"{GATEWAY_URL}?lista={cc_line}"
             headers = {"User-Agent": self.generate_user_agent()}
             response = requests.get(url, headers=headers, timeout=20)
-            return response.text.strip()  # Return raw response without any cleaning
+            return response.text.strip()  # Return raw response
         except Exception as e:
             logger.error(f"Gateway error: {e}")
             return f"❌ Gateway Error: {str(e)}"
@@ -292,21 +297,22 @@ Contact @mhitzxg for
                 try:
                     time.sleep(processing_delay)
                     cc_parts = cc.split('|')
-                    result = self.check_card(cc)  # Get raw response
+                    raw_result = self.check_card(cc)
+                    escaped_result = self.escape_markdown(raw_result)
                     
-                    if any(x in result.lower() for x in ["charged", "cvv match", "approved"]):
+                    if any(x in raw_result.lower() for x in ["charged", "cvv match", "approved"]):
                         approved += 1
                         status = "✅ APPROVED ✅"
                     else:
                         declined += 1
                         status = "❌ DECLINED ❌"
                     
-                    # Keep the raw response format
+                    # Keep the raw response format but escape markdown
                     results.append(f"""
 💳 *Card {index}:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📊 *Status:* {status}
 📝 *Response:*
-{result}
+{escaped_result}
 ------------------------------------
 """)
                     
@@ -478,7 +484,8 @@ Contact @mhitzxg for
             threading.Thread(target=loading_animation).start()
 
             try:
-                result = self.check_card(cc)  # Get raw response
+                raw_result = self.check_card(cc)  # Get raw response
+                escaped_result = self.escape_markdown(raw_result)  # Escape markdown special chars
                 stop_event.set()
                 
                 cc_parts = cc.split('|')
@@ -489,7 +496,7 @@ Contact @mhitzxg for
 ╚═══════════════════════╝
 🔹 *Card:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📝 *Response:*
-{result}
+{escaped_result}
 
 🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}
 ⚡ Powered by Premium CC Checker
