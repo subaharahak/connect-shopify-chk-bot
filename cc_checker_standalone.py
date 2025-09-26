@@ -46,7 +46,7 @@ class PremiumCcChecker:
         
         self.START_MESSAGE = """
 ╔══💳 *PREMIUM CC CHECKER* 💳══╗
-║                              ║
+
   🔥 *Commands* 🔥  
 ══════════════════════
 🔹 */chk* - Instant Single Card Check
@@ -702,3 +702,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
