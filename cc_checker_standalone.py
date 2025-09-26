@@ -40,11 +40,11 @@ def ping():
 
 class PremiumCcChecker:
     def __init__(self):
-    self.bot = telebot.TeleBot(BOT_TOKEN)
-    self.load_data()
-    self.register_handlers()
-    
-    self.START_MESSAGE = """
+        self.bot = telebot.TeleBot(BOT_TOKEN)
+        self.load_data()
+        self.register_handlers()
+        
+        self.START_MESSAGE = """
 ╔══💳 *PREMIUM CC CHECKER* 💳══╗
 ║                              ║
   🔥 *Commands* 🔥  
@@ -64,14 +64,15 @@ Contact @mhitzxg for
 📊 *Current Status:*
 ✅ Operational | 🚀 Turbo Mode Enabled
 """
-    self.PROCESSING_ANIMATION = [
-        "🔍 Analyzing Card Patterns...",
-        "🔎 Verifying with Payment Gateways...",
-        "🌐 Routing Through Global Nodes...",
-        "⚡ Finalizing Transaction Check...",
-        "⏳ Gateway processing may take 30-45 seconds...",
-        "🔄 Premium servers optimizing response..."
-    ]
+        self.PROCESSING_ANIMATION = [
+            "🔍 Analyzing Card Patterns...",
+            "🔎 Verifying with Payment Gateways...",
+            "🌐 Routing Through Global Nodes...",
+            "⚡ Finalizing Transaction Check...",
+            "⏳ Gateway processing may take 30-45 seconds...",
+            "🔄 Premium servers optimizing response..."
+        ]
+
     def load_data(self):
         """Load authorized users and admin data"""
         try:
@@ -223,49 +224,49 @@ Contact @mhitzxg for
         text = text.replace('/', '／')  # Replace with fullwidth slash
         return text.strip()
 
-def check_card(self, cc_line):
-    """Check card via gateway with retry logic and longer timeout"""
-    max_retries = 3
-    timeout_duration = 45  # Increased from 20 to 45 seconds
-    
-    for attempt in range(max_retries):
-        try:
-            url = f"{GATEWAY_URL}?lista={cc_line}"
-            headers = {"User-Agent": self.generate_user_agent()}
-            
-            # Add timeout for both connection and read
-            response = requests.get(url, headers=headers, timeout=(10, timeout_duration))
-            
-            if response.status_code == 200:
-                return self.clean_raw_response(response.text)
-            else:
-                logger.warning(f"Gateway returned status {response.status_code} on attempt {attempt + 1}")
+    def check_card(self, cc_line):
+        """Check card via gateway with retry logic and longer timeout"""
+        max_retries = 3
+        timeout_duration = 45  # Increased from 20 to 45 seconds
+        
+        for attempt in range(max_retries):
+            try:
+                url = f"{GATEWAY_URL}?lista={cc_line}"
+                headers = {"User-Agent": self.generate_user_agent()}
                 
-        except requests.exceptions.Timeout:
-            logger.warning(f"Timeout on attempt {attempt + 1}")
-            if attempt < max_retries - 1:
-                time.sleep(2)  # Wait before retry
-                continue
-            else:
-                return "❌ Gateway Timeout: The checking service is taking too long to respond. Please try again later."
+                # Add timeout for both connection and read
+                response = requests.get(url, headers=headers, timeout=(10, timeout_duration))
                 
-        except requests.exceptions.ConnectionError:
-            logger.warning(f"Connection error on attempt {attempt + 1}")
-            if attempt < max_retries - 1:
-                time.sleep(3)
-                continue
-            else:
-                return "❒ Gateway Connection Error: Service temporarily unavailable."
-                
-        except Exception as e:
-            logger.error(f"Gateway error on attempt {attempt + 1}: {e}")
-            if attempt < max_retries - 1:
-                time.sleep(2)
-                continue
-            else:
-                return f"❌ Gateway Error: {str(e)}"
-    
-    return "❌ Maximum retry attempts exceeded. Please try again later."
+                if response.status_code == 200:
+                    return self.clean_raw_response(response.text)
+                else:
+                    logger.warning(f"Gateway returned status {response.status_code} on attempt {attempt + 1}")
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"Timeout on attempt {attempt + 1}")
+                if attempt < max_retries - 1:
+                    time.sleep(2)  # Wait before retry
+                    continue
+                else:
+                    return "❌ Gateway Timeout: The checking service is taking too long to respond. Please try again later."
+                    
+            except requests.exceptions.ConnectionError:
+                logger.warning(f"Connection error on attempt {attempt + 1}")
+                if attempt < max_retries - 1:
+                    time.sleep(3)
+                    continue
+                else:
+                    return "❒ Gateway Connection Error: Service temporarily unavailable."
+                    
+            except Exception as e:
+                logger.error(f"Gateway error on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                    continue
+                else:
+                    return f"❌ Gateway Error: {str(e)}"
+        
+        return "❌ Maximum retry attempts exceeded. Please try again later."
 
     def is_admin(self, user_id):
         return user_id in self.ADMIN_IDS
@@ -669,11 +670,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
