@@ -40,13 +40,13 @@ def ping():
 
 class PremiumCcChecker:
     def __init__(self):
-        self.bot = telebot.TeleBot(BOT_TOKEN)
-        self.load_data()
-        self.register_handlers()
-        
-        self.START_MESSAGE = """
+    self.bot = telebot.TeleBot(BOT_TOKEN)
+    self.load_data()
+    self.register_handlers()
+    
+    self.START_MESSAGE = """
 ╔══💳 *PREMIUM CC CHECKER* 💳══╗
-║                               ║
+║                              ║
   🔥 *Commands* 🔥  
 ══════════════════════
 🔹 */chk* - Instant Single Card Check
@@ -64,13 +64,13 @@ Contact @mhitzxg for
 📊 *Current Status:*
 ✅ Operational | 🚀 Turbo Mode Enabled
 """
-       self.PROCESSING_ANIMATION = [
-    "🔍 Analyzing Card Patterns...",
-    "🔎 Verifying with Payment Gateways...",
-    "🌐 Routing Through Global Nodes...",
-    "⚡ Finalizing Transaction Check...",
-    "⏳ Gateway processing may take 30-45 seconds...",
-    "🔄 Premium servers optimizing response..."
+    self.PROCESSING_ANIMATION = [
+        "🔍 Analyzing Card Patterns...",
+        "🔎 Verifying with Payment Gateways...",
+        "🌐 Routing Through Global Nodes...",
+        "⚡ Finalizing Transaction Check...",
+        "⏳ Gateway processing may take 30-45 seconds...",
+        "🔄 Premium servers optimizing response..."
     ]
     def load_data(self):
         """Load authorized users and admin data"""
@@ -669,6 +669,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
