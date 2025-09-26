@@ -12,7 +12,7 @@ from telebot.types import (InlineKeyboardMarkup, InlineKeyboardButton,
                           ReplyKeyboardMarkup, KeyboardButton)
 
 # Configuration
-BOT_TOKEN = "8228704791:AAH85VvWM1HK0-8EEiJKh533Gc3-ul5r-x8"
+BOT_TOKEN = "8374941881:AAGI8cU4W85SEN0WbEvg_eTZiGZdvXAmVCk"
 MAIN_ADMIN_ID = 5103348494
 MAX_CARDS_PER_MCHK = 10
 GATEWAY_URL = "https://chk-for-shopify-q23p.onrender.com"
@@ -635,5 +635,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
