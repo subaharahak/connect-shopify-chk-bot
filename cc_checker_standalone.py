@@ -46,7 +46,7 @@ class PremiumCcChecker:
         
         self.START_MESSAGE = """
 ╔══💳 *PREMIUM CC CHECKER* 💳══╗
-║                              ║
+║                               ║
   🔥 *Commands* 🔥  
 ══════════════════════
 🔹 */chk* - Instant Single Card Check
@@ -71,7 +71,7 @@ Contact @mhitzxg for
     "⚡ Finalizing Transaction Check...",
     "⏳ Gateway processing may take 30-45 seconds...",
     "🔄 Premium servers optimizing response..."
-]
+    ]
     def load_data(self):
         """Load authorized users and admin data"""
         try:
@@ -669,6 +669,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
