@@ -15,7 +15,7 @@ from telebot.types import (InlineKeyboardMarkup, InlineKeyboardButton,
 BOT_TOKEN = "8374941881:AAGI8cU4W85SEN0WbEvg_eTZiGZdvXAmVCk"
 MAIN_ADMIN_ID = 5103348494
 MAX_CARDS_PER_MCHK = 10
-GATEWAY_URL = "https://chk-for-shopify-q23p.onrender.com"
+GATEWAY_URL = "https://chk-for-shopify-o00b.onrender.com"
 
 # Logging setup
 logging.basicConfig(
@@ -635,6 +635,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
