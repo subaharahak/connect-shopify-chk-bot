@@ -308,6 +308,7 @@ Contact @mhitzxg for
         total = len(cc_lines)
         approved = declined = 0
         processing_delay = 1.2
+        approved_cards = []  # Store approved cards separately
         results = []
         
         status_msg = self.bot.send_message(
@@ -330,6 +331,15 @@ Contact @mhitzxg for
             parse_mode='Markdown'
         )
 
+        # Message to store approved cards (will be updated)
+        approved_msg = self.bot.send_message(
+            chat_id,
+            "🎯 *APPROVED CARDS LIVE FEED:*\n"
+            "═══════════════════════\n"
+            "⏳ *Waiting for first approval...*",
+            parse_mode='Markdown'
+        )
+
         def process_cards():
             nonlocal approved, declined
             
@@ -339,15 +349,41 @@ Contact @mhitzxg for
                     cc_parts = cc.split('|')
                     raw_result = self.check_card(cc)
                     
-                    if any(x in raw_result.lower() for x in ["charged", "cvv match", "approved", "✅ 𝐀𝐏𝐏𝐑𝐎𝐕𝐄𝐃 𝐂𝐂"]):
+                    is_approved = any(x in raw_result.lower() for x in ["charged", "cvv match", "approved", "✅ 𝐀𝐏𝐏𝐑𝐎𝐕𝐄𝐃 𝐂𝐂"])
+                    
+                    if is_approved:
                         approved += 1
                         status = "✅ APPROVED ✅"
+                        # Add to approved cards list
+                        approved_cards.append({
+                            'card': cc,
+                            'parts': cc_parts,
+                            'response': raw_result,
+                            'index': index
+                        })
+                        
+                        # Update approved cards message immediately
+                        approved_text = "🎯 *APPROVED CARDS LIVE FEED:*\n═══════════════════════\n"
+                        for i, approved_card in enumerate(approved_cards, 1):
+                            approved_text += f"{i}. `{approved_card['parts'][0]}|{approved_card['parts'][1]}|{approved_card['parts'][2]}|{approved_card['parts'][3]}`\n"
+                        
+                        try:
+                            self.bot.edit_message_text(
+                                approved_text,
+                                chat_id,
+                                approved_msg.message_id,
+                                parse_mode='Markdown'
+                            )
+                        except Exception as e:
+                            logger.error(f"Error updating approved message: {e}")
+                            
                     else:
                         declined += 1
                         status = "❌ DECLINED ❌"
                     
-                    # Format the result with cleaned raw response
-                    results.append(f"""
+                    # Format the result with cleaned raw response (only store approved cards for final results)
+                    if is_approved:
+                        results.append(f"""
 💳 *Card {index}:* `{cc_parts[0]}|{cc_parts[1]}|{cc_parts[2]}|{cc_parts[3]}`
 📊 *Status:* {status}
 📝 *Response:*
@@ -381,17 +417,12 @@ Contact @mhitzxg for
                     
                 except Exception as e:
                     logger.error(f"Error processing card {index}: {e}")
-                    results.append(f"""
-💳 *Card {index}:* `{cc}`
-❌ *Error Processing Card*
-⚠️ *Error:* `{str(e)}`
-------------------------------------
-""")
+                    declined += 1
                     continue
             
             success_rate = (approved/total)*100 if total > 0 else 0
             
-            # Prepare final message with all results
+            # Prepare final message with only approved cards
             stats_part = f"""
 ╔═══════════════════════╗
   🎉 *MASS CHECK COMPLETE* 🎉  
@@ -406,47 +437,48 @@ Contact @mhitzxg for
 ⚡ *System Shutdown:* `NORMAL`
 🕒 *Completed at:* {time.strftime('%H:%M:%S')}
 💎 *Thank you for using Premium CC Checker*
-═══════════════════════
-🔍 *Detailed Results:*
 """
             
-            results_part = ''.join(results)
-            final_message = stats_part + results_part
+            # Only show approved cards in final results
+            if approved > 0:
+                stats_part += f"\n🔍 *Approved Cards ({approved}):*"
+                final_message = stats_part + ''.join(results)
+            else:
+                final_message = stats_part + "\n❌ *No approved cards found*"
             
             try:
-                # Send as plain text if too long for Markdown
-                if len(final_message) <= 4096:
-                    try:
-                        self.bot.edit_message_text(
-                            final_message,
-                            chat_id,
-                            status_msg.message_id,
-                            parse_mode='Markdown'
-                        )
-                    except:
-                        # Fallback to plain text if Markdown fails
-                        self.bot.edit_message_text(
-                            final_message,
-                            chat_id,
-                            status_msg.message_id,
-                            parse_mode=None
-                        )
-                else:
-                    # If too long, send stats first then results as reply
+                # Update the status message with final results
+                self.bot.edit_message_text(
+                    final_message,
+                    chat_id,
+                    status_msg.message_id,
+                    parse_mode='Markdown'
+                )
+                
+                # Update approved message with final count
+                if approved > 0:
+                    final_approved_text = f"""
+🎯 *MASS CHECK COMPLETE - APPROVED CARDS:*
+═══════════════════════
+✅ *Total Approved:* `{approved}` out of `{total}`
+📊 *Success Rate:* `{success_rate:.2f}%`
+
+💎 *Check the main message for detailed results*
+                    """
                     self.bot.edit_message_text(
-                        stats_part,
+                        final_approved_text,
                         chat_id,
-                        status_msg.message_id,
+                        approved_msg.message_id,
                         parse_mode='Markdown'
                     )
-                    # Send results in chunks as plain text
-                    chunk_size = 4000
-                    for i in range(0, len(results_part), chunk_size):
-                        self.bot.send_message(
-                            chat_id,
-                            results_part[i:i+chunk_size],
-                            parse_mode=None
-                        )
+                else:
+                    self.bot.edit_message_text(
+                        "❌ *No approved cards found in this batch*",
+                        chat_id,
+                        approved_msg.message_id,
+                        parse_mode='Markdown'
+                    )
+                    
             except Exception as e:
                 logger.error(f"Error sending final message: {e}")
                 self.bot.send_message(
